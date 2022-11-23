@@ -89,12 +89,15 @@ def create_message_for_bot(user_id, list_of_people, my_token_api_object):
             # if next_person == '2':
             #     break
 
+
 DELAY = 0.34  # задержка перед запросом к апи
-user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get
 
-user_id, list_of_people = find_people('1', user_api_object) # тут id того, кто написал боту, и список найденных ему людей
-generator_of_messages = create_message_for_bot(user_id, list_of_people, user_api_object)
+if __name__ == '__main__':
+    user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get
 
-for message_params in generator_of_messages:
-    print(message_params)
+    user_id, list_of_people = find_people('1', user_api_object) # тут id того, кто написал боту, и список найденных ему людей
+    generator_of_messages = create_message_for_bot(user_id, list_of_people, user_api_object)
+
+    for message_params in generator_of_messages:
+        print(message_params)
 
