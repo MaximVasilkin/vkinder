@@ -12,6 +12,7 @@ def write_msg(user_id, message):
     vk_bot.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': randrange(10 ** 7)})
 
 
+messages = []
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW:
 
@@ -20,9 +21,9 @@ for event in longpoll.listen():
             request = event.text
 
             if request.lower() == "старт":
-                for params in create_message_for_bot(user_id, vk_me):
-                    vk_bot.method('messages.send', params)
-            elif request == "пока":
-                write_msg(event.user_id, "Пока((")
+                messages = create_message_for_bot(user_id, vk_me)
+                vk_bot.method('messages.send', next(messages))
+            elif request == 'Следующая анкета':
+                vk_bot.method('messages.send', next(messages))
             else:
                 write_msg(event.user_id, "Не поняла вашего ответа...")
