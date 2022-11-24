@@ -36,24 +36,27 @@ def get_user_info(user_name_or_id, my_token_api_object):
     if not user_birthday:
         user_birthday = input('введите дату рождения, например 10.10.1990: ')   # это надо адаптировать под бота
 
-    user_age = datetime.now().year - int(user_birthday[-4:])
+    try:
+        user_age = datetime.now().year - int(user_birthday[-4:])
+    except TypeError:
+        user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
 
     if not user_city_title:
         user_city_title = input('Введите Ваш город: ')  # это надо адаптировать под бота
 
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
-    return user_age, user_city_title, user_sex
+    return user_sex, user_age, user_city_title
 
 
-
-def find_people(user_name_or_id, my_token_api_object):
+def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     '''
-    :param user_name_or_id: id или имя пользователя, например: 1 или paveldurov
+    :param user_sex: инфо, возвращённое функцией get_user_info
+    :param user_age: инфо, возвращённое функцией get_user_info
+    :param user_city_title: инфо, возвращённое функцией get_user_info
     :param my_token_api_object: объект, возвращенный от функции authorize(path, my_token=True)
     :return: список найденных людей
     '''
-    user_age, user_city_title, user_sex = get_user_info(user_name_or_id, my_token_api_object)
     sleep(DELAY)
     response = my_token_api_object.users.search(**{'sort': '0',
                                                     'count': '1000',
@@ -63,27 +66,16 @@ def find_people(user_name_or_id, my_token_api_object):
                                                     'age_from': str(user_age - 3),
                                                     'age_to': str(user_age + 3),     # ищем анкеты +-3 года от возраста пользователя
                                                     'has_photo': '1'})             # строго с фото
-    people = response['items'] # тут список найденных людей
+    people = response['items']  # тут список найденных людей
     return people
 
 
-def create_keyboard():
-    keyboard = VkKeyboard()
-    keyboard.add_button('Следующая анкета', color=VkKeyboardColor.POSITIVE)
-    keyboard.add_button('Добавить в избранное', color=VkKeyboardColor.PRIMARY)
-    keyboard.add_button('Открыть избранное', color=VkKeyboardColor.SECONDARY)
-    return keyboard.get_keyboard()
-
-
-
-def create_message_for_bot(user_id, my_token_api_object):
+def create_message_for_bot(list_of_people, my_token_api_object):
     '''
-    :param user_id: тут id того, кто написал боту
-    :param list_of_people: список найденных людей для знакомства
+    :param list_of_people: список найденных людей для знакомства. Функция find_people
     :param my_token_api_object: объект апи, возвращаемый функцией authorize
     :return: возвращает генератор ПАРАМЕТРОВ сообщений. Параметры для ВК метода message.send, это для бота
     '''
-    list_of_people = find_people(user_id, my_token_api_object)
     for person in list_of_people:
         if not person['is_closed']:  # closed - закрытый профиль, фотки у такого не собрать
             person_name = f'{person["first_name"]} {person["last_name"]}'
@@ -100,19 +92,43 @@ def create_message_for_bot(user_id, my_token_api_object):
             avatars = avatars[-3:]
             three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
             attachment = ','.join(three_most_liked)
-            params_of_message_send = {'user_id': user_id,
-                                      'message': message,
-                                      'attachment': attachment,
-                                      'random_id': randrange(10 ** 7),
-                                      'keyboard': create_keyboard()}
-            yield params_of_message_send
+            # params_of_message_send = {'user_id': user_id,
+            #                           'message': message,
+            #                           'attachment': attachment,
+            #                           'random_id': randrange(10 ** 7),
+            #                           'keyboard': create_keyboard()}
+            yield message, attachment
 
             # next_person = input('Открыть следующую анкету? \n1 - Да\n2 - Нет\n')
             # if next_person == '2':
             #     break
 
 
+def create_keyboard(start=False, main=False, favorites=False, yes_no=False):
+    keyboard = VkKeyboard(one_time=True)
+    if start:
+        keyboard.add_button('Старт', color=VkKeyboardColor.POSITIVE)
+    elif main:
+        keyboard.add_button('Ещё', color=VkKeyboardColor.POSITIVE)
+        keyboard.add_button('Стоп', color=VkKeyboardColor.NEGATIVE)
+        keyboard.add_line()
+        keyboard.add_button('Добавить в избранное', color=VkKeyboardColor.PRIMARY)
+        keyboard.add_button('Открыть избранное', color=VkKeyboardColor.SECONDARY)
+    elif favorites:
+        keyboard.add_button('Удалить', color=VkKeyboardColor.NEGATIVE)
+        keyboard.add_button('Главное меню', color=VkKeyboardColor.PRIMARY)
+    elif yes_no:
+        keyboard.add_button('Да', color=VkKeyboardColor.POSITIVE)
+        keyboard.add_button('Нет', color=VkKeyboardColor.NEGATIVE)
+    return keyboard.get_keyboard()
+
+
 DELAY = 0.34  # задержка перед запросом к апи
+
+KEYBOARD_start = create_keyboard(start=True)            # Кнопка СТАРТ
+KEYBOARD_main = create_keyboard(main=True)              # Главное меню
+KEYBOARD_favorites = create_keyboard(favorites=True)    # Меню избранного
+KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕТ
 
 if __name__ == '__main__':
     user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get

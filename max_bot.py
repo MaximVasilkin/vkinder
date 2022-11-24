@@ -8,11 +8,20 @@ vk_bot = authorize('tokens.ini', bot_token=True)
 longpoll = VkLongPoll(vk_bot)
 
 
-def write_msg(user_id, message):
-    vk_bot.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': randrange(10 ** 7)})
+def write_msg(user_id, message, attachment='', keyboard=''):
+    vk_bot.method('messages.send', {'user_id': user_id,
+                                    'message': message,
+                                    'attachment': attachment,
+                                    'keyboard': keyboard,
+                                    'random_id': randrange(10 ** 7)})
 
 
-messages = []
+messages = {}
+user_info = {'user_vk_id': {'user_status': None,
+                            'user_sex': None,
+                            'user_age': None,
+                            'user_city_title': None}}
+
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW:
 
@@ -21,9 +30,19 @@ for event in longpoll.listen():
             request = event.text
 
             if request.lower() == "старт":
-                messages = create_message_for_bot(user_id, vk_me)
-                vk_bot.method('messages.send', next(messages))
-            elif request == 'Следующая анкета':
-                vk_bot.method('messages.send', next(messages))
+                user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
+                user_info[user_id] = {'user_status': 0,
+                                      'user_sex': user_sex,
+                                      'user_age': user_age,
+                                      'user_city_title': user_city_title}
+
+                found_people = find_people(user_sex, user_age, user_city_title, vk_me)
+
+                messages[user_id] = create_message_for_bot(found_people, vk_me)
+                write_msg(user_id, *next(messages[user_id]), keyboard=KEYBOARD_main)
+            elif request == 'Ещё':
+                write_msg(user_id, *next(messages[user_id]), keyboard=KEYBOARD_main)
+            elif request == 'Стоп':
+                write_msg(user_id, 'Хорошего Вам дня!', keyboard=KEYBOARD_start)
             else:
                 write_msg(event.user_id, "Не поняла вашего ответа...")
