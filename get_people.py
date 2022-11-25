@@ -33,8 +33,8 @@ def get_user_info(user_name_or_id, my_token_api_object):
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
 
-    if not user_birthday:
-        user_birthday = input('введите дату рождения, например 10.10.1990: ')   # это надо адаптировать под бота
+    # if not user_birthday:
+    #     user_birthday = input('введите дату рождения, например 10.10.1990: ')   # это надо адаптировать под бота
 
     try:
         user_age = datetime.now().year - int(user_birthday[-4:])
@@ -42,8 +42,8 @@ def get_user_info(user_name_or_id, my_token_api_object):
         user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
 
-    if not user_city_title:
-        user_city_title = input('Введите Ваш город: ')  # это надо адаптировать под бота
+    # if not user_city_title:
+    #     user_city_title = input('Введите Ваш город: ')  # это надо адаптировать под бота
 
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
     return user_sex, user_age, user_city_title
