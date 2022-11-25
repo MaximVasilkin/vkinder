@@ -92,6 +92,10 @@ def create_message_for_bot(list_of_people, my_token_api_object):
             avatars = avatars[-3:]
             three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
             attachment = ','.join(three_most_liked)
+            # content_source = {
+            #                     "type": "url",
+            #                     "url": person_link
+            #                  }
             # params_of_message_send = {'user_id': user_id,
             #                           'message': message,
             #                           'attachment': attachment,
