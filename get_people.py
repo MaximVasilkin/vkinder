@@ -70,7 +70,7 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     return people
 
 
-def create_message_for_bot(list_of_people, my_token_api_object):
+def content_generator(list_of_people, my_token_api_object):
     '''
     :param list_of_people: список найденных людей для знакомства. Функция find_people
     :param my_token_api_object: объект апи, возвращаемый функцией authorize
@@ -92,20 +92,7 @@ def create_message_for_bot(list_of_people, my_token_api_object):
             avatars = avatars[-3:]
             three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
             attachment = ','.join(three_most_liked)
-            # content_source = {
-            #                     "type": "url",
-            #                     "url": person_link
-            #                  }
-            # params_of_message_send = {'user_id': user_id,
-            #                           'message': message,
-            #                           'attachment': attachment,
-            #                           'random_id': randrange(10 ** 7),
-            #                           'keyboard': create_keyboard()}
             yield message, attachment
-
-            # next_person = input('Открыть следующую анкету? \n1 - Да\n2 - Нет\n')
-            # if next_person == '2':
-            #     break
 
 
 def create_keyboard(start=False, main=False, favorites=False, yes_no=False):
@@ -132,11 +119,12 @@ DELAY = 0.34  # задержка перед запросом к апи
 KEYBOARD_start = create_keyboard(start=True)            # Кнопка СТАРТ
 KEYBOARD_main = create_keyboard(main=True)              # Главное меню
 KEYBOARD_favorites = create_keyboard(favorites=True)    # Меню избранного
+
 KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕТ
 
 if __name__ == '__main__':
     user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get
-    generator_of_messages = create_message_for_bot('1', user_api_object)
+    generator_of_messages = content_generator('1', user_api_object)
 
     for message_params in generator_of_messages:
         print(message_params)
