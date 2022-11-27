@@ -32,19 +32,11 @@ def get_user_info(user_name_or_id, my_token_api_object):
     user_info = my_token_api_object.users.get(**{'user_ids': user_name_or_id,
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
-
-    # if not user_birthday:
-    #     user_birthday = input('введите дату рождения, например 10.10.1990: ')   # это надо адаптировать под бота
-
     try:
         user_age = datetime.now().year - int(user_birthday[-4:])
     except TypeError:
         user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
-
-    # if not user_city_title:
-    #     user_city_title = input('Введите Ваш город: ')  # это надо адаптировать под бота
-
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
     return user_sex, user_age, user_city_title
 
@@ -119,7 +111,6 @@ DELAY = 0.34  # задержка перед запросом к апи
 KEYBOARD_start = create_keyboard(start=True)            # Кнопка СТАРТ
 KEYBOARD_main = create_keyboard(main=True)              # Главное меню
 KEYBOARD_favorites = create_keyboard(favorites=True)    # Меню избранного
-
 KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕТ
 
 if __name__ == '__main__':

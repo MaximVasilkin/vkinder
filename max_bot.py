@@ -9,42 +9,50 @@ vk_bot = authorize('tokens.ini', bot_token=True)
 longpoll = VkLongPoll(vk_bot)
 
 
+user_info = {}       #  {'user_vk_id': {'user_position': None,
+                     #                  'user_sex': None,
+                     #                  'user_age': None,
+                     #                  'user_city_title': None}}
+
+persons = {}         # Тут подобранные пользователю люди в формате: {'user_vk_id': generator_of_people}
+
+last_message = ''    # Тут последнее отправленное сообщение, ЕСЛИ параметр copy_message=True при вызове функции write_msg
+last_person = []     # Тут последняя отправленная анкета, ЕСЛИ параметр copy_person=True при вызове функции write_msg
+
+keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда только что пришёл - кнопка СТАРТ
+             1: KEYBOARD_main,        # Позиция 1. Когда прошёл все проверки и нажал СТАРТ - кнопки: Ещё, Стоп, Добавить в избранное, Открыть избранное
+             2: KEYBOARD_yes_or_no,   # Позиция 2. Когда нажал Добавить в избранное - кнопки: Да, Нет
+             3: KEYBOARD_favorites,   # Позиция 3. Когда нажал Открыть избранное - кнопки: Удалить, В главное меню
+             404: '',                 # Позиция 404. Когда нет возраста - нет кнопок
+             405: ''}                 # Позиция 405. Когда нет города - нет кнопок
+
+
 def write_msg(user_id, message='', attachment='', keyboard='', copy_message=False, copy_person=False):
-    global last_message, last_person, last_keyboard
+    global last_message, last_person, user_info
+    if not keyboard:
+        keyboard = keyboards[user_info[user_id]['user_position']]
     sleep(DELAY)
     vk_bot.method('messages.send', {'user_id': user_id,
                                     'message': message,
                                     'attachment': attachment,
                                     'keyboard': keyboard,
                                     'random_id': randrange(10 ** 7)})
-    if keyboard:
-        last_keyboard = keyboard
     if copy_message:
         last_message = message
     elif copy_person:
         last_person = (message, attachment)
 
 
-messages = {}
-user_info = {'user_vk_id': {'user_position': None,
-                            'user_sex': None,
-                            'user_age': None,
-                            'user_city_title': None}}
-
-last_message = ''
-last_person = []
-last_keyboard = KEYBOARD_start
-
 def send_next_person():
     try:
-        write_msg(user_id, *next(messages[user_id]), keyboard=KEYBOARD_main, copy_person=True)
+        write_msg(user_id, *next(persons[user_id]), copy_person=True)
     except StopIteration:
-        write_msg(user_id, 'Нет анкет!', keyboard=KEYBOARD_start)
+        write_msg(user_id, 'Нет анкет!')
 
 
 def start(user_sex, user_age, user_city_title, vk_me):
     user_info[user_id]['user_position'] = 1
-    messages[user_id] = content_generator(find_people(user_sex, user_age, user_city_title, vk_me), vk_me)
+    persons[user_id] = content_generator(find_people(user_sex, user_age, user_city_title, vk_me), vk_me)
     send_next_person()
 
 
@@ -57,9 +65,9 @@ for event in longpoll.listen():
             user_id = str(event.user_id)
             request = event.text
 
-            user_info.setdefault(user_id, {'user_position': None})
+            user_info.setdefault(user_id, {'user_position': 0})
 
-            if request.lower() == "старт":
+            if user_info[user_id]['user_position'] == 0 and request.lower() == "старт":
                 user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
                 user_info[user_id] = {'user_position': 0,
                                       'user_sex': user_sex,
@@ -106,28 +114,29 @@ for event in longpoll.listen():
                 send_next_person()
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Стоп':
-                write_msg(user_id, 'Хорошего Вам дня!', keyboard=KEYBOARD_start)
+                user_info[user_id]['user_position'] = 0
+                write_msg(user_id, 'Хорошего Вам дня!')
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Добавить в избранное':
                 user_info[user_id]['user_position'] = 2
-                write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1], keyboard=KEYBOARD_yes_or_no)
+                write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Да':
                 user_info[user_id]['user_position'] = 1
-                write_msg(user_id, 'Добавлено! \nЛогика добавления в БД\n' + last_person[0], last_person[1], keyboard=KEYBOARD_main)
+                write_msg(user_id, 'Добавлено! \nЛогика добавления в БД\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
                 user_info[user_id]['user_position'] = 1
-                write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1], keyboard=KEYBOARD_main)
+                write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
                 user_info[user_id]['user_position'] = 3
-                write_msg(user_id, 'Тут список избранного из БД', keyboard=KEYBOARD_favorites)
+                write_msg(user_id, 'Тут список избранного из БД')
 
 
             elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
                 user_info[user_id]['user_position'] = 1
-                write_msg(user_id, *last_person, keyboard=KEYBOARD_main)
+                write_msg(user_id, *last_person)
 
             else:
-                write_msg(event.user_id, 'Не поняла вашего ответа...', keyboard=last_keyboard)
+                write_msg(user_id, 'Не поняла вашего ответа...')
