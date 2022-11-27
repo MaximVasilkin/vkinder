@@ -2,6 +2,7 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
+from dbdeliriuminator import  *
 
 
 vk_me = authorize('tokens.ini', my_token=True)
@@ -27,7 +28,7 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
              405: ''}                 # Позиция 405. Когда нет города - нет кнопок
 
 
-def write_msg(user_id, message='', attachment='', keyboard='', copy_message=False, copy_person=False):
+def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', copy_message=False, copy_person=False):
     global last_message, last_person, user_info
     if not keyboard:
         keyboard = keyboards[user_info[user_id]['user_position']]
@@ -40,7 +41,8 @@ def write_msg(user_id, message='', attachment='', keyboard='', copy_message=Fals
     if copy_message:
         last_message = message
     elif copy_person:
-        last_person = (message, attachment)
+        last_person = (message, attachment, person_id)
+
 
 
 def send_next_person():
@@ -73,6 +75,9 @@ for event in longpoll.listen():
                                       'user_sex': user_sex,
                                       'user_age': user_age,
                                       'user_city_title': user_city_title}
+
+                if not get_user(int(user_id)):  #БД
+                    add_user(int(user_id))      #БД
 
                 if not user_age:
                     user_info[user_id]['user_position'] = 404
@@ -122,8 +127,11 @@ for event in longpoll.listen():
                 write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Да':
+
+                add_favorites(int(user_id), last_person[2]) #БД
+
                 user_info[user_id]['user_position'] = 1
-                write_msg(user_id, 'Добавлено! \nЛогика добавления в БД\n' + last_person[0], last_person[1])
+                write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
                 user_info[user_id]['user_position'] = 1
@@ -131,12 +139,15 @@ for event in longpoll.listen():
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
                 user_info[user_id]['user_position'] = 3
-                write_msg(user_id, 'Тут список избранного из БД')
+
+                for favorite in get_favorites(int(user_id)): #БД
+
+                    write_msg(user_id, favorite[0])
 
 
             elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
                 user_info[user_id]['user_position'] = 1
-                write_msg(user_id, *last_person)
+                write_msg(user_id, last_person[0], last_person[1])
 
             else:
                 write_msg(user_id, 'Не поняла вашего ответа...')

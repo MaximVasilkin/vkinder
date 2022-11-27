@@ -84,7 +84,7 @@ def content_generator(list_of_people, my_token_api_object):
             avatars = avatars[-3:]
             three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
             attachment = ','.join(three_most_liked)
-            yield message, attachment
+            yield message, attachment, int(person_id)
 
 
 def create_keyboard(start=False, main=False, favorites=False, yes_no=False):
