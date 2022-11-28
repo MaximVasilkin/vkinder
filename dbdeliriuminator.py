@@ -6,7 +6,7 @@ import psycopg2
 def deliriumdbconfig():
     configdict = {  'hostname': 'localhost',
                     'username': 'postgres',
-                    'password': '1234',
+                    'password': 'pstpwd',
                     'database': 'vkinder'
                  }
     return configdict
@@ -265,20 +265,20 @@ def drop_tables():
 #______________________Правки Макса_____________________
 
 
-def is_user_favorites(user_id, favorites_id=False):
-    connection = get_connection()
-    try:
-        with connection.cursor() as cursor:
-            if favorites_id:
-                sql = "SELECT user_id, favorites_id FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
-                cursor.execute(sql, (user_id, favorites_id,))
-            else:
-                sql = "SELECT user_id FROM user_favorites WHERE user_id = %s;"
-                cursor.execute(sql, (user_id,))
-            result = cursor.fetchone()
-    finally:
-        connection.close()
-    return result
+# def is_user_favorites(user_id, favorites_id=False):
+#     connection = get_connection()
+#     try:
+#         with connection.cursor() as cursor:
+#             if favorites_id:
+#                 sql = "SELECT user_id, favorites_id FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
+#                 cursor.execute(sql, (user_id, favorites_id,))
+#             else:
+#                 sql = "SELECT user_id FROM user_favorites WHERE user_id = %s;"
+#                 cursor.execute(sql, (user_id,))
+#             result = cursor.fetchone()
+#     finally:
+#         connection.close()
+#     return result
 
 
 def delete_from_favorites(user_id, favorite_id):
@@ -299,4 +299,5 @@ def delete_from_favorites(user_id, favorite_id):
 
 
 if __name__ == '__main__':
-    delete_from_favorites(2, 532338892)
+    add_user(321)
+    print(get_favorites(321))

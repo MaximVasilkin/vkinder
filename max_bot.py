@@ -16,8 +16,6 @@ user_info = {}       #  {'user_vk_id': {'user_position': None,
                      #                  'user_city_title': None}}
 
 persons = {}         # Тут подобранные пользователю люди в формате: {'user_vk_id': generator_of_people}
-
-last_message = ''    # Тут последнее отправленное сообщение, ЕСЛИ параметр copy_message=True при вызове функции write_msg
 last_person = []     # Тут последняя отправленная анкета, ЕСЛИ параметр copy_person=True при вызове функции write_msg
 
 keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда только что пришёл - кнопка СТАРТ
@@ -29,8 +27,8 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
              405: ''}                 # Позиция 405. Когда нет города - нет кнопок
 
 
-def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', copy_message=False, copy_person=False):
-    global last_message, last_person, user_info
+def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', copy_person=False):
+    global last_person, user_info
     if not keyboard:
         keyboard = keyboards[user_info[user_id]['user_position']]
     sleep(DELAY)
@@ -39,17 +37,15 @@ def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', c
                                     'attachment': attachment,
                                     'keyboard': keyboard,
                                     'random_id': randrange(10 ** 7)})
-    if copy_message:
-        last_message = message
-    elif copy_person:
+    if copy_person:
         last_person = (message, attachment, person_id)
-
 
 
 def send_next_person():
     try:
         write_msg(user_id, *next(persons[user_id]), copy_person=True)
     except StopIteration:
+        user_info[user_id]['user_position'] = 0
         write_msg(user_id, 'Нет анкет!')
 
 
@@ -58,14 +54,16 @@ def start(user_sex, user_age, user_city_title, vk_me):
     persons[user_id] = content_generator(find_people(user_sex, user_age, user_city_title, vk_me), vk_me)
     send_next_person()
 
+
 def open_favorites(user_id):
-    if is_user_favorites(user_id):  # БД
+    if get_favorites(int(user_id)):  # БД
         user_info[user_id]['user_position'] = 3
         for favorite in get_favorites(int(user_id)):  # БД
             write_msg(user_id, favorite[0])
     else:
         user_info[user_id]['user_position'] = 1
         write_msg(user_id, 'Ваше избранное пусто')
+
 
 for event in longpoll.listen():
 
@@ -154,11 +152,9 @@ for event in longpoll.listen():
                 user_info[user_id]['user_position'] = 1
                 write_msg(user_id, last_person[0], last_person[1])
 
-
             elif user_info[user_id]['user_position'] == 3 and request == 'Удалить':
                 user_info[user_id]['user_position'] = 4
                 write_msg(user_id, 'Введите ID пользователя для удаления')
-
 
             elif user_info[user_id]['user_position'] == 4 and request.isdigit() and is_user_favorites(user_id, request):
                 delete_from_favorites(user_id, request)
