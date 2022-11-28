@@ -212,6 +212,7 @@ def update_favorites(vk_id, name=None, surname=None, birthday=None, age=None,
 sql_create_vk_user = """CREATE TABLE IF NOT EXISTS vk_user (
     -- id SERIAL PRIMARY KEY,
     vk_id INTEGER PRIMARY KEY,
+    date INTEGER NOT NULL,
     user_name VARCHAR(50),
     user_surname VARCHAR(60),
     user_age SMALLINT,
@@ -222,6 +223,7 @@ sql_create_vk_user = """CREATE TABLE IF NOT EXISTS vk_user (
 """
 sql_create_favorites = """CREATE TABLE IF NOT EXISTS favorites (
     vk_id INTEGER PRIMARY KEY,
+    date INTEGER NOT NULL,
     user_name VARCHAR(50),
     user_surname VARCHAR(60),
     user_born INTEGER,
