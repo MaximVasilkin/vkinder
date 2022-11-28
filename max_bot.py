@@ -3,7 +3,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
 from dbdeliriuminator import  *
-
+from cities import get_city_list
 
 vk_me = authorize('tokens.ini', my_token=True)
 vk_bot = authorize('tokens.ini', bot_token=True)
@@ -102,9 +102,11 @@ for event in longpoll.listen():
                     write_msg(user_id, 'Введите Ваш Город')
 
 
-            elif user_info[user_id]['user_position'] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
+            elif user_info[user_id]['user_position'] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) :
                 write_msg(user_id, 'Неверный ввод! Введите Ваш город')
-            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
+            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) and request.strip() not in get_city_list('cities.json'):
+                write_msg(user_id, 'Отсутствует в списке городов')
+            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) and request.strip() in get_city_list('cities.json'):
                 user_info[user_id]['user_city_title'] = request.strip()
                 write_msg(user_id, 'Принято')
                 if user_info[user_id]['user_age']:

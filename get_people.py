@@ -33,7 +33,8 @@ def get_user_info(user_name_or_id, my_token_api_object):
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
     try:
-        user_age = datetime.now().year - int(user_birthday[-4:])
+        birthday = datetime.strptime(user_birthday, "%d.%m.%Y")
+        user_age = int(((datetime.today()-birthday).days)/365)
     except TypeError:
         user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
