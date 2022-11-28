@@ -24,6 +24,7 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
              1: KEYBOARD_main,        # Позиция 1. Когда прошёл все проверки и нажал СТАРТ - кнопки: Ещё, Стоп, Добавить в избранное, Открыть избранное
              2: KEYBOARD_yes_or_no,   # Позиция 2. Когда нажал Добавить в избранное - кнопки: Да, Нет
              3: KEYBOARD_favorites,   # Позиция 3. Когда нажал Открыть избранное - кнопки: Удалить, В главное меню
+             4: '',                   # Позиция 4. Когда просят ввести ID для удаления из избранного
              404: '',                 # Позиция 404. Когда нет возраста - нет кнопок
              405: ''}                 # Позиция 405. Когда нет города - нет кнопок
 
@@ -57,7 +58,14 @@ def start(user_sex, user_age, user_city_title, vk_me):
     persons[user_id] = content_generator(find_people(user_sex, user_age, user_city_title, vk_me), vk_me)
     send_next_person()
 
-
+def open_favorites(user_id):
+    if is_user_favorites(user_id):  # БД
+        user_info[user_id]['user_position'] = 3
+        for favorite in get_favorites(int(user_id)):  # БД
+            write_msg(user_id, favorite[0])
+    else:
+        user_info[user_id]['user_position'] = 1
+        write_msg(user_id, 'Ваше избранное пусто')
 
 for event in longpoll.listen():
 
@@ -127,27 +135,36 @@ for event in longpoll.listen():
                 write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Да':
-
-                add_favorites(int(user_id), last_person[2]) #БД
-
-                user_info[user_id]['user_position'] = 1
-                write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
+                if is_favorites(last_person[2]):
+                    user_info[user_id]['user_position'] = 1
+                    write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_person[0], last_person[1]) #БД
+                else:
+                    add_favorites(int(user_id), last_person[2]) #БД
+                    user_info[user_id]['user_position'] = 1
+                    write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
                 user_info[user_id]['user_position'] = 1
                 write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
-                user_info[user_id]['user_position'] = 3
-
-                for favorite in get_favorites(int(user_id)): #БД
-
-                    write_msg(user_id, favorite[0])
-
+                open_favorites(user_id)
 
             elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
                 user_info[user_id]['user_position'] = 1
                 write_msg(user_id, last_person[0], last_person[1])
+
+
+            elif user_info[user_id]['user_position'] == 3 and request == 'Удалить':
+                user_info[user_id]['user_position'] = 4
+                write_msg(user_id, 'Введите ID пользователя для удаления')
+
+
+            elif user_info[user_id]['user_position'] == 4 and request.isdigit() and is_user_favorites(user_id, request):
+                delete_from_favorites(user_id, request)
+                user_info[user_id]['user_position'] = 3
+                write_msg(user_id, f'Пользователь с id {request} успешно удалён')
+                open_favorites(user_id)
 
             else:
                 write_msg(user_id, 'Не поняла вашего ответа...')

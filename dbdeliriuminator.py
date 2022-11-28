@@ -106,6 +106,7 @@ def is_user(user_id):
         connection.close()
     return result
 
+
 def is_favorites(favorites_id):
     connection = get_connection()
     try:
@@ -252,7 +253,6 @@ def drop_tables():
         with connection.cursor() as cursor:
             sql_drop_vk_user = """DROP TABLE vk_user;"""
             sql_drop_favorites = """DROP TABLE favorites;"""
-
             sql_drop_u_f = """DROP TABLE user_favorites;"""
             cursor.execute(sql_drop_u_f)
             cursor.execute(sql_drop_vk_user)
@@ -262,6 +262,41 @@ def drop_tables():
         connection.close()
     return
 
+#______________________Правки Макса_____________________
+
+
+def is_user_favorites(user_id, favorites_id=False):
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            if favorites_id:
+                sql = "SELECT user_id, favorites_id FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
+                cursor.execute(sql, (user_id, favorites_id,))
+            else:
+                sql = "SELECT user_id FROM user_favorites WHERE user_id = %s;"
+                cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+    finally:
+        connection.close()
+    return result
+
+
+def delete_from_favorites(user_id, favorite_id):
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql_u_f = 'DELETE FROM user_favorites WHERE user_id = %s AND favorites_id = %s;'
+            cursor.execute(sql_u_f, (user_id, favorite_id))
+            sql_check = 'SELECT user_favorites.user_id FROM user_favorites JOIN favorites ON user_favorites.favorites_id = favorites.vk_id WHERE user_favorites.favorites_id = %s;'
+            cursor.execute(sql_check, (favorite_id,))
+            check_in_other_favorites = cursor.fetchone()
+            if not check_in_other_favorites:
+                sql_f = 'DELETE FROM favorites WHERE vk_id = %s;'
+                cursor.execute(sql_f, (favorite_id,))
+            connection.commit()
+    finally:
+        connection.close()
+
+
 if __name__ == '__main__':
-    add_favorites(1, 120000)
-    print(get_favorites(1))
+    delete_from_favorites(2, 532338892)
