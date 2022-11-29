@@ -14,7 +14,6 @@ def getconfig():
                  }
     return configdict
 
-
 # deliriumdb.py
 # узрите, новый делириуминатор
 
@@ -32,7 +31,7 @@ class DeliriumBDinator:
                                                    password=password,
                                                    database=database)
 
-    #  функции работы с СУБД
+#  функции соединения с СУБД -----------------------------------------------------------------------------------
     def _getdeliriumdbconfig(self):
         """ Получение настроек для связи с СУБД """
         # configdict = {'hostname': 'localhost',
@@ -69,7 +68,16 @@ class DeliriumBDinator:
     def closed(self):
         return self.connection.closed
 
-    # таблица vk_user -------------------------------------------------------------
+    def connect(self):
+        if not self.connection.closed:
+            self.connection = psycopg2.connect(host=self.host,
+                                      user=self.user,
+                                      password=self.password,
+                                      database=self.database)
+# ---------------------------------------------------------------------------------------------------------------
+
+
+    # таблица vk_user -------------------------------------------------------------------------------------------
     def get_user(self, vk_id: int):
         """ данные пользователя по vk_id """
         with self.connection, self.connection.cursor() as cursor:
@@ -86,7 +94,7 @@ class DeliriumBDinator:
             result = cursor.fetchall()
         return result
 
-    def get_user_favorites_id(self, vk_id: int) -> list:
+    def get_user_favorites_id(self, vk_id: int) -> list: # -------------------------------------------------
         """ данные о vk_id избранных пользователя по vk_id """
         with self.connection, self.connection.cursor() as cursor:
             sql = "SELECT vk_id FROM favorites JOIN user_favorites ON favorites.vk_id = user_favorites.favorites_id WHERE user_id = %s"
@@ -94,10 +102,9 @@ class DeliriumBDinator:
             result = cursor.fetchall()
         return result
 
-
     def add_user(self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None):
-        """ добавляем данные пользователя поля vk_id и date обязательны
-        (self, vk_id, date, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None) """
+        """ добавляем данные пользователя поле vk_id обязательно
+        (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None) """
         if date is None:
             date = datetime.datetime.now().timestamp()
         with self.connection, self.connection.cursor() as cursor:
@@ -108,12 +115,16 @@ class DeliriumBDinator:
     def delete_user(self, vk_id):
         """ удаляем пользователя по vk_id """
         with self.connection, self.connection.cursor() as cursor:
-            sql_1 = "DELETE FROM favorites JOIN user_favorites ON favorites.vk_id = user_favorites.favorites_id WHERE user_id = %s"
-            cursor.execute(sql_1, (vk_id,))
             sql_2 = "DELETE FROM user_favorites WHERE user_id = %s"
             cursor.execute(sql_2, (vk_id,))
-            sql_3 = "DELETE FROM vk_user WHERE user_id = %s"
+            sql_3 = "DELETE FROM vk_user WHERE vk_id = %s"
             cursor.execute(sql_3, (vk_id,))
+        with self.connection, self.connection.cursor() as cursor:
+            sql_1 = """DELETE FROM favorites 
+                        WHERE vk_id IN
+                        (SELECT vk_id FROM favorites JOIN user_favorites ON favorites.vk_id = user_favorites.favorites_id
+                        WHERE user_favorites.favorites_id IS NULL);"""
+            cursor.execute(sql_1, (vk_id,))
 
     def update_user(self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
                     data=None):
@@ -153,6 +164,20 @@ class DeliriumBDinator:
                             SET user_data = %s
                             WHERE id = %s;""", (data, vk_id))
 
+    # Позиции .................................................................................................
+    def set_position(self, vk_id, position):
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.execute("""UPDATE vk_user
+                            SET user_position = %s
+                            WHERE vk_id = %s;""", (position, vk_id))
+
+    def get_position(self, vk_id):
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.execute("""SELECT user_position
+                                FROM vk_user
+                                WHERE vk_id = %s;""", (vk_id,))
+
+    # ????????????????????????????????????????????????????????????????????????????????????????????????????????????
     def is_user(self, user_id):
         """ Проверяет наличие пользователя. Возвращает id пользователя либо None.
         Дублирует частично по функционалы метод get_user """
@@ -189,7 +214,7 @@ class DeliriumBDinator:
             cursor.execute(sql, (vk_id,))
             result = cursor.fetchone()
         return result
-
+    # ??????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
     def add_favorites(self, user_id, favorites_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None,
                       city=None, data=None):
@@ -204,12 +229,15 @@ class DeliriumBDinator:
             # проверка наличия пользователя в избранном ------------------------------
             sql_check = "SELECT vk_id FROM favorites WHERE vk_id = %s"
             cursor.execute(sql_check, (favorites_id,))
+            if cursor.fetchone() is None:
+                # добавляем в избранное
+                sql_insert_f = "INSERT INTO favorites(vk_id, user_date, user_name, user_surname, user_birthday, user_age, user_sex, user_city, user_data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+                cursor.execute(sql_insert_f, (favorites_id, date, name, surname, birthday, age, sex, city, data))
+            # добавляем связь
+            sql_check_2 = "SELECT * FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
+            cursor.execute(sql_check_2, (user_id, favorites_id))
             if cursor.fetchone():
                 return False
-            # добавляем в избранное
-            sql_insert_f = "INSERT INTO favorites(vk_id, user_date, user_name, user_surname, user_birthday, user_age, user_sex, user_city, user_data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
-            cursor.execute(sql_insert_f, (favorites_id, date, name, surname, birthday, age, sex, city, data))
-            # добавляем связь
             sql_insert_uf = "INSERT INTO user_favorites(user_id, favorites_id) VALUES (%s, %s)"
             cursor.execute(sql_insert_uf, (user_id, favorites_id))
         return True
@@ -268,7 +296,6 @@ class DeliriumBDinator:
                             WHERE id = %s;""", (photo_3, vk_id))
         return  # просто бессмысленный ретурн
 
-
     def delete_favorites(self, user_id, favorites_id):
         """ Удалает пользователя из избранного пользователя.
         Проверяет равенство user_id, favorites_id и наличие favorites_id в БД """
@@ -277,7 +304,7 @@ class DeliriumBDinator:
             # raise ErrorEquelId
         with self.connection, self.connection.cursor() as cursor:
             # проверка наличия связи пользователя и пользователя (ужс) ------------------------------
-            sql_search = "SELECT vk_id FROM user_favorites WHERE user_id = %s AND favorites_id=%s;"
+            sql_search = "SELECT * FROM user_favorites WHERE user_id = %s AND favorites_id=%s;"
             cursor.execute(sql_search, (user_id, favorites_id))
             if cursor.fetchone() is None:
                 return False
@@ -285,16 +312,15 @@ class DeliriumBDinator:
             sql_delete_uf = "DELETE FROM user_favorites WHERE user_id = %s AND favorites_id=%s;"
             cursor.execute(sql_delete_uf, (user_id, favorites_id))
             # проверяем на наличие сторонних связей (ужс ужс)
-            sql_search = "SELECT vk_id FROM user_favorites WHERE user_id <> %s AND favorites_id=%s;"
+            sql_search = "SELECT * FROM user_favorites WHERE user_id <> %s AND favorites_id=%s;"
             cursor.execute(sql_search, (user_id, favorites_id))
             if cursor.fetchone():
                 return True
             # удаляем фаворита (именем Е.В.)
-            sql_delete_f = "DELETE FROM favorites WHERE VALUES (%s,);"
+            sql_delete_f = "DELETE FROM favorites WHERE vk_id = %s;"
             cursor.execute(sql_delete_f, (favorites_id,))
         return True
     # ---------------------- end dbdelirium  ----------------------------------------------
-
 
 # ---------- CREATE TABLES and DROP
 
@@ -302,6 +328,7 @@ sql_create_vk_user = """CREATE TABLE IF NOT EXISTS vk_user (
     -- id SERIAL PRIMARY KEY,
     vk_id INTEGER PRIMARY KEY,
     user_date INTEGER NOT NULL,
+    user_position SMALLINT,
     user_name VARCHAR(50),
     user_surname VARCHAR(60),
     user_age SMALLINT,
@@ -331,17 +358,6 @@ sql_create_u_f = """CREATE TABLE IF NOT EXISTS user_favorites (
     CONSTRAINT pk PRIMARY KEY (user_id, favorites_id)
 );"""
 
-
-# def getconfig(): смотри наверху
-#     """ Получение настроек для связи с СУБД """
-#     configdict = {'hostname': 'localhost',
-#                   'username': 'postgres',
-#                   'password': '1234',
-#                   'database': 'vkinder'
-#                   }
-#     return configdict
-
-
 def get_connection(*, username=None, password=None, database=None, hostname='localhost'):
     """ возвращает соединение с СУБД по настройкам возвращаемым
         getconfig """
@@ -357,7 +373,6 @@ def get_connection(*, username=None, password=None, database=None, hostname='loc
                               database=database)
     return result
 
-
 def create_tables():
     connection = get_connection()
     try:
@@ -369,7 +384,6 @@ def create_tables():
     finally:
         connection.close()
     return
-
 
 def drop_tables():
     connection = get_connection()
@@ -386,45 +400,65 @@ def drop_tables():
     finally:
         connection.close()
 
-
-# tests ---------------------------------------------------------------------------------------------------------
-import pytest
-import random
-
-
-def test_1():
+def check():
     try:
         create_tables()
 
         vkinder = DeliriumBDinator()
 
-        for user_id in range(1000000000, 1000000100, 10):
-            vkinder.add_user(user_id)
-            for favorit_id in range(user_id - 10, user_id, 2):
-                vkinder.add_favorites(user_id, favorit_id)
-                # проверить функцию add_favorites
-        # input('push inter:')
-        for user_id in range(1000000000, 1000000100, 10):
-            print(user_id, vkinder.is_user(user_id))
-            print(not (vkinder.is_user(user_id) is None))
-            for favorit_id in range(user_id - 10, user_id, 2):
-                print('       ', favorit_id, not (vkinder.is_favorites(favorit_id) is None))
-                print('       ', not (vkinder.is_user_favorites(user_id, favorit_id) is None))
-        # input('push inter:')
-        for user_id in range(1000000000, 1000000100, 10):
-            assert not (vkinder.is_user(user_id) is None)
-            for favorit_id in range(user_id - 10, user_id, 2):
-                assert not (vkinder.is_favorites(favorit_id) is None)
-                assert not (vkinder.is_user_favorites(user_id, favorit_id) is None)
+        # for user_id in range(1000000000, 1000000100, 10):
+        #     vkinder.add_user(user_id)
+        #     for favorit_id in range(user_id - 14, user_id, 2):
+        #         vkinder.add_favorites(user_id, favorit_id)
+
+        u = [1, 2, 3, 4]
+        f = [[2, 7, 8, 9], [1, 7, 8, 6], [2, 7, 8, 5], [2, 7, 8, 5]]
+        for user, fav in zip(u, f):
+            vkinder.add_user(user)
+            for f in fav:
+                vkinder.add_favorites(user, f)
+
+        input('push inter:')
+        vkinder.set_position(1, 1)
+        print('Позиция 1:', vkinder.get_position(1))
+        vkinder.set_position(1, 2)
+        print('Позиция 1:', vkinder.get_position(1))
+
+        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+        print(vkinder.add_favorites(4, 5))
+        vkinder.delete_favorites(4, 5)
+        print('у 4 удалили 5')
+        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+        vkinder.delete_favorites(1, 9)
+        print('у 1 удалили 9')
+        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+        print(vkinder.is_user_favorites(1, 9))
+        vkinder.delete_favorites(3, 5)
+        print('у 3 удалили 5')
+        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+        print(vkinder.is_user_favorites(3, 5))
+        vkinder.delete_user(2)
+        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
         vkinder.close()
 
     finally:
         drop_tables()
 
-
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    # drop_tables()
-    # input()
-
-    test_1()
+    check()
