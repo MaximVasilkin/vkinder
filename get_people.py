@@ -38,7 +38,7 @@ def get_user_info(user_name_or_id, my_token_api_object):
         user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
-    return user_sex, user_age, user_city_title
+    return bool(user_sex - 1), user_age, user_city_title
 
 
 def find_people(user_sex, user_age, user_city_title, my_token_api_object):
@@ -53,7 +53,7 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     response = my_token_api_object.users.search(**{'sort': '0',
                                                     'count': '1000',
                                                     'hometown': user_city_title,
-                                                    'sex': 1 if user_sex == 2 else 2,
+                                                    'sex': 1 if user_sex else 2,
                                                     'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
                                                     'age_from': str(user_age - 3),
                                                     'age_to': str(user_age + 3),     # ищем анкеты +-3 года от возраста пользователя

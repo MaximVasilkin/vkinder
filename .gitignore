@@ -2,4 +2,5 @@ __pycache__/
 .idea/
 *.ini
 *.txt
+newdb/
 exp.py

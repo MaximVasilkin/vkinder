@@ -3,7 +3,10 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
 from dbdeliriuminator import  *
+from newdb.dbclass import *
 
+
+db = DeliriumBDinator()
 
 vk_me = authorize('tokens.ini', my_token=True)
 vk_bot = authorize('tokens.ini', bot_token=True)
@@ -30,7 +33,7 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
 def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', copy_person=False):
     global last_person, user_info
     if not keyboard:
-        keyboard = keyboards[user_info[user_id]['user_position']]
+        keyboard = keyboards[db.get_user(int(user_id))[1]]
     sleep(DELAY)
     vk_bot.method('messages.send', {'user_id': user_id,
                                     'message': message,
@@ -45,23 +48,23 @@ def send_next_person():
     try:
         write_msg(user_id, *next(persons[user_id]), copy_person=True)
     except StopIteration:
-        user_info[user_id]['user_position'] = 0
+        db.update_user(int(user_id), position=0)
         write_msg(user_id, 'Нет анкет!')
 
 
 def start(user_sex, user_age, user_city_title, vk_me):
-    user_info[user_id]['user_position'] = 1
+    db.update_user(int(user_id), position=1)
     persons[user_id] = content_generator(find_people(user_sex, user_age, user_city_title, vk_me), vk_me)
     send_next_person()
 
 
 def open_favorites(user_id):
     if get_favorites(int(user_id)):  # БД
-        user_info[user_id]['user_position'] = 3
+        db.update_user(int(user_id), position=3)
         for favorite in get_favorites(int(user_id)):  # БД
             write_msg(user_id, favorite[0])
     else:
-        user_info[user_id]['user_position'] = 1
+        db.update_user(int(user_id), position=1)
         write_msg(user_id, 'Ваше избранное пусто')
 
 
@@ -73,94 +76,108 @@ for event in longpoll.listen():
             user_id = str(event.user_id)
             request = event.text
 
-            user_info.setdefault(user_id, {'user_position': 0})
+            if not db.is_user(int(user_id)):
+                db.add_user(int(user_id), position=0)
 
-            if user_info[user_id]['user_position'] == 0 and request.lower() == "старт":
-                user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
-                user_info[user_id] = {'user_position': 0,
-                                      'user_sex': user_sex,
-                                      'user_age': user_age,
-                                      'user_city_title': user_city_title}
 
-                if not get_user(int(user_id)):  #БД
-                    add_user(int(user_id))      #БД
+            #user_info.setdefault(user_id, {'user_position': 0})
 
-                if not user_age:
-                    user_info[user_id]['user_position'] = 404
-                    write_msg(user_id, 'Введите Ваш возраст')
-                elif not user_city_title:
-                    user_info[user_id]['user_position'] = 405
-                    write_msg(user_id, 'Введите Ваш Город')
+            if db.get_user(int(user_id))[1] == 0 and request.lower() == "старт":
+
+
+
+                if not any(db.get_user(int(user_id))[-3:-1]):  #БД
+                    user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
+                    db.update_user(int(user_id), sex=user_sex, age=user_age, city=user_city_title)
+                    if not user_age:
+                        db.update_user(int(user_id), position=404)
+                        write_msg(user_id, 'Введите Ваш возраст')
+                    elif not user_city_title:
+                        db.update_user(int(user_id), position=405)
+                        write_msg(user_id, 'Введите Ваш Город')
+                    else:
+                        start(user_sex, user_age, user_city_title, vk_me)
                 else:
-                    start(user_sex, user_age, user_city_title, vk_me)
+                    data = db.get_user(int(user_id))
+                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
 
 
+                # user_info[user_id] = {'user_position': 0,
+                #                       'user_sex': user_sex,
+                #                       'user_age': user_age,
+                #                       'user_city_title': user_city_title}
 
-            elif user_info[user_id]['user_position'] == 404 and not request.isdigit():
+
+            elif db.get_user(int(user_id))[1] == 404 and not request.isdigit():
                 write_msg(user_id, 'Неверный ввод! Введите Ваш возраст')
-            elif user_info[user_id]['user_position'] == 404 and request.isdigit():
-                user_info[user_id]['user_age'] = int(request)
+            elif db.get_user(int(user_id))[1] == 404 and request.isdigit():
+                db.update_user(int(user_id), age=int(request))
+                #user_info[user_id]['user_age'] = int(request)
                 write_msg(user_id, 'Принято')
-                if user_info[user_id]['user_city_title']:
-                    start(*list(user_info[user_id].values())[1:], vk_me)
+                if db.get_user(int(user_id))[-2]:
+                    data = db.get_user(int(user_id))
+                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
                 else:
-                    user_info[user_id]['user_position'] = 405
+                    db.update_user(int(user_id), position=405)
                     write_msg(user_id, 'Введите Ваш Город')
 
 
-            elif user_info[user_id]['user_position'] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
+            elif db.get_user(int(user_id))[1] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
                 write_msg(user_id, 'Неверный ввод! Введите Ваш город')
-            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
-                user_info[user_id]['user_city_title'] = request.strip()
+            elif db.get_user(int(user_id))[1] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
+                #user_info[user_id]['user_city_title'] = request.strip()
+                db.update_user(int(user_id), city=request.strip())
                 write_msg(user_id, 'Принято')
-                if user_info[user_id]['user_age']:
-                    start(*list(user_info[user_id].values())[1:], vk_me)
+                if db.get_user(int(user_id))[-4]:
+                    #start(*list(user_info[user_id].values())[1:], vk_me)
+                    data = db.get_user(int(user_id))
+                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
                 else:
-                    user_info[user_id]['user_position'] = 404
+                    db.update_user(int(user_id), position=404)
                     write_msg(user_id, 'Введите Ваш Возраст')
 
 
 
-            elif user_info[user_id]['user_position'] == 1 and request == 'Ещё':
+            elif db.get_user(int(user_id))[1] == 1 and request == 'Ещё':
                 send_next_person()
 
-            elif user_info[user_id]['user_position'] == 1 and request == 'Стоп':
-                user_info[user_id]['user_position'] = 0
+            elif db.get_user(int(user_id))[1] == 1 and request == 'Стоп':
+                db.update_user(int(user_id), position=0)
                 write_msg(user_id, 'Хорошего Вам дня!')
 
-            elif user_info[user_id]['user_position'] == 1 and request == 'Добавить в избранное':
-                user_info[user_id]['user_position'] = 2
-                write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
-
-            elif user_info[user_id]['user_position'] == 2 and request == 'Да':
-                if is_favorites(last_person[2]):
-                    user_info[user_id]['user_position'] = 1
-                    write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_person[0], last_person[1]) #БД
-                else:
-                    add_favorites(int(user_id), last_person[2]) #БД
-                    user_info[user_id]['user_position'] = 1
-                    write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
-
-            elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
-                user_info[user_id]['user_position'] = 1
-                write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
-
-            elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
-                open_favorites(user_id)
-
-            elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
-                user_info[user_id]['user_position'] = 1
-                write_msg(user_id, last_person[0], last_person[1])
-
-            elif user_info[user_id]['user_position'] == 3 and request == 'Удалить':
-                user_info[user_id]['user_position'] = 4
-                write_msg(user_id, 'Введите ID пользователя для удаления')
-
-            elif user_info[user_id]['user_position'] == 4 and request.isdigit() and is_user_favorites(user_id, request):
-                delete_from_favorites(user_id, request)
-                user_info[user_id]['user_position'] = 3
-                write_msg(user_id, f'Пользователь с id {request} успешно удалён')
-                open_favorites(user_id)
+            # elif user_info[user_id]['user_position'] == 1 and request == 'Добавить в избранное':
+            #     user_info[user_id]['user_position'] = 2
+            #     write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
+            #
+            # elif user_info[user_id]['user_position'] == 2 and request == 'Да':
+            #     if is_favorites(last_person[2]):
+            #         user_info[user_id]['user_position'] = 1
+            #         write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_person[0], last_person[1]) #БД
+            #     else:
+            #         add_favorites(int(user_id), last_person[2]) #БД
+            #         user_info[user_id]['user_position'] = 1
+            #         write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
+            #
+            # elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
+            #     user_info[user_id]['user_position'] = 1
+            #     write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
+            #
+            # elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
+            #     open_favorites(user_id)
+            #
+            # elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
+            #     user_info[user_id]['user_position'] = 1
+            #     write_msg(user_id, last_person[0], last_person[1])
+            #
+            # elif user_info[user_id]['user_position'] == 3 and request == 'Удалить':
+            #     user_info[user_id]['user_position'] = 4
+            #     write_msg(user_id, 'Введите ID пользователя для удаления')
+            #
+            # elif user_info[user_id]['user_position'] == 4 and request.isdigit() and is_user_favorites(user_id, request):
+            #     delete_from_favorites(user_id, request)
+            #     user_info[user_id]['user_position'] = 3
+            #     write_msg(user_id, f'Пользователь с id {request} успешно удалён')
+            #     open_favorites(user_id)
 
             else:
                 write_msg(user_id, 'Не поняла вашего ответа...')
