@@ -2,7 +2,7 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
-from dbdeliriuminator import  *
+#from dbdeliriuminator import  *
 from newdb.dbclass import *
 
 
@@ -59,10 +59,13 @@ def start(user_sex, user_age, user_city_title, vk_me):
 
 
 def open_favorites(user_id):
-    if get_favorites(int(user_id)):  # БД
+    favorites = db.get_user_favorites(int(user_id))
+    if favorites:  # БД
         db.update_user(int(user_id), position=3)
-        for favorite in get_favorites(int(user_id)):  # БД
-            write_msg(user_id, favorite[0])
+        for favorite in favorites:  # БД
+            message = f'{favorite[2]} {favorite[3]}\n{favorite[-3]}'
+            attachment = ','.join([photo for photo in favorite[8:11] if photo])
+            write_msg(user_id, message, attachment)
     else:
         db.update_user(int(user_id), position=1)
         write_msg(user_id, 'Ваше избранное пусто')
@@ -145,39 +148,49 @@ for event in longpoll.listen():
                 db.update_user(int(user_id), position=0)
                 write_msg(user_id, 'Хорошего Вам дня!')
 
-            # elif user_info[user_id]['user_position'] == 1 and request == 'Добавить в избранное':
-            #     user_info[user_id]['user_position'] = 2
-            #     write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
-            #
-            # elif user_info[user_id]['user_position'] == 2 and request == 'Да':
-            #     if is_favorites(last_person[2]):
-            #         user_info[user_id]['user_position'] = 1
-            #         write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_person[0], last_person[1]) #БД
-            #     else:
-            #         add_favorites(int(user_id), last_person[2]) #БД
-            #         user_info[user_id]['user_position'] = 1
-            #         write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
-            #
-            # elif user_info[user_id]['user_position'] == 2 and request == 'Нет':
-            #     user_info[user_id]['user_position'] = 1
-            #     write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
-            #
-            # elif user_info[user_id]['user_position'] == 1 and request == 'Открыть избранное':
-            #     open_favorites(user_id)
-            #
-            # elif user_info[user_id]['user_position'] == 3 and request == 'Главное меню':
-            #     user_info[user_id]['user_position'] = 1
-            #     write_msg(user_id, last_person[0], last_person[1])
-            #
-            # elif user_info[user_id]['user_position'] == 3 and request == 'Удалить':
-            #     user_info[user_id]['user_position'] = 4
-            #     write_msg(user_id, 'Введите ID пользователя для удаления')
-            #
-            # elif user_info[user_id]['user_position'] == 4 and request.isdigit() and is_user_favorites(user_id, request):
-            #     delete_from_favorites(user_id, request)
-            #     user_info[user_id]['user_position'] = 3
-            #     write_msg(user_id, f'Пользователь с id {request} успешно удалён')
-            #     open_favorites(user_id)
+            elif db.get_user(int(user_id))[1] == 1 and request == 'Добавить в избранное':
+                db.update_user(int(user_id), position=2)
+                write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?\n' + last_person[0], last_person[1])
+
+            elif db.get_user(int(user_id))[1] == 2 and request == 'Да':
+                if db.is_favorites(last_person[2]):
+                    db.update_user(int(user_id), position=1)
+                    write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_person[0], last_person[1]) #БД
+                else:
+                    photos = {'photo_1': None,
+                              'photo_2': None,
+                              'photo_3': None}
+                    counter = 1
+                    for photo in last_person[1].split(','):
+                        photos[f'photo_{counter}'] = photo
+                        counter += 1
+                    counter = 0
+
+
+                    db.add_favorites(int(user_id), last_person[2], name=last_person[0].split('\n')[0].split()[0], surname=last_person[0].split('\n')[0].split()[1], data=last_person[0].split('\n')[1], **photos) #БД !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WORK
+                    db.update_user(int(user_id), position=1)
+                    write_msg(user_id, 'Добавлено!\n' + last_person[0], last_person[1])
+
+            elif db.get_user(int(user_id))[1] == 2 and request == 'Нет':
+                db.update_user(int(user_id), position=1)
+                write_msg(user_id, 'Не добавлено!\n' + last_person[0], last_person[1])
+
+            elif db.get_user(int(user_id))[1] == 1 and request == 'Открыть избранное':
+                open_favorites(user_id)
+
+            elif db.get_user(int(user_id))[1] == 3 and request == 'Главное меню':
+                db.update_user(int(user_id), position=1)
+                write_msg(user_id, last_person[0], last_person[1])
+
+            elif db.get_user(int(user_id))[1] == 3 and request == 'Удалить':
+                db.update_user(int(user_id), position=4)
+                write_msg(user_id, 'Введите ID пользователя для удаления')
+
+            elif db.get_user(int(user_id))[1] == 4 and request.isdigit() and db.is_user_favorites(user_id, request):
+                db.delete_favorites(user_id, request)
+                db.update_user(int(user_id), position=3)
+                write_msg(user_id, f'Пользователь с id {request} успешно удалён')
+                open_favorites(user_id)
 
             else:
                 write_msg(user_id, 'Не поняла вашего ответа...')
