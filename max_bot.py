@@ -102,19 +102,18 @@ for event in longpoll.listen():
                     write_msg(user_id, 'Введите Ваш Город')
 
 
-            elif user_info[user_id]['user_position'] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) :
-                write_msg(user_id, 'Неверный ввод! Введите Ваш город')
-            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) and request.strip() not in get_city_list('cities.json'):
-                write_msg(user_id, 'Отсутствует в списке городов')
-            elif user_info[user_id]['user_position'] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]) and request.strip() in get_city_list('cities.json'):
-                user_info[user_id]['user_city_title'] = request.strip()
-                write_msg(user_id, 'Принято')
-                if user_info[user_id]['user_age']:
-                    start(*list(user_info[user_id].values())[1:], vk_me)
-                else:
-                    user_info[user_id]['user_position'] = 404
-                    write_msg(user_id, 'Введите Ваш Возраст')
-
+            elif user_info[user_id]['user_position'] == 405:
+                try:
+                    index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-',' '))
+                    user_info[user_id]['user_city_title'] = get_city_list('cities.json')[1][index]
+                    write_msg(user_id, 'Принято')
+                    if user_info[user_id]['user_age']:
+                        start(*list(user_info[user_id].values())[1:], vk_me)
+                    else:
+                        user_info[user_id]['user_position'] = 404
+                        write_msg(user_id, 'Введите Ваш Возраст')
+                except ValueError:
+                    write_msg(user_id, 'Неверный ввод! Введите Ваш город')
 
 
             elif user_info[user_id]['user_position'] == 1 and request == 'Ещё':
