@@ -2,8 +2,7 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
-#from dbdeliriuminator import  *
-from newdb.dbclass import *
+from deliriumclass import *
 
 
 db = DeliriumBDinator()
@@ -13,7 +12,7 @@ vk_bot = authorize('tokens.ini', bot_token=True)
 longpoll = VkLongPoll(vk_bot)
 
 
-user_info = {}       #  {'user_vk_id': {'user_position': None,
+#user_info = {}       #  {'user_vk_id': {'user_position': None,
                      #                  'user_sex': None,
                      #                  'user_age': None,
                      #                  'user_city_title': None}}
@@ -31,7 +30,7 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
 
 
 def write_msg(user_id, message='', attachment='', person_id=None, keyboard='', copy_person=False):
-    global last_person, user_info
+    global last_person
     if not keyboard:
         keyboard = keyboards[db.get_user(int(user_id))[1]]
     sleep(DELAY)
@@ -62,6 +61,7 @@ def open_favorites(user_id):
     favorites = db.get_user_favorites(int(user_id))
     if favorites:  # БД
         db.update_user(int(user_id), position=3)
+        write_msg(user_id, 'Ваше избранное:')
         for favorite in favorites:  # БД
             message = f'{favorite[2]} {favorite[3]}\n{favorite[-3]}'
             attachment = ','.join([photo for photo in favorite[8:11] if photo])
@@ -186,8 +186,8 @@ for event in longpoll.listen():
                 db.update_user(int(user_id), position=4)
                 write_msg(user_id, 'Введите ID пользователя для удаления')
 
-            elif db.get_user(int(user_id))[1] == 4 and request.isdigit() and db.is_user_favorites(user_id, request):
-                db.delete_favorites(user_id, request)
+            elif db.get_user(int(user_id))[1] == 4 and request.isdigit() and db.is_user_favorites(user_id, int(request)):
+                db.delete_favorites(user_id, int(request))
                 db.update_user(int(user_id), position=3)
                 write_msg(user_id, f'Пользователь с id {request} успешно удалён')
                 open_favorites(user_id)
