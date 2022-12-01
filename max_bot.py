@@ -2,7 +2,9 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import *
 from string import digits, punctuation, whitespace
-from deliriumclass import *
+from dbdeliriuminator.classdbinator import *
+import json
+from cities import get_city_list
 
 
 db = DeliriumBDinator()
@@ -125,9 +127,9 @@ for event in longpoll.listen():
                     write_msg(user_id, 'Введите Ваш Город')
 
 
-            elif db.get_user(int(user_id))[1] == 405 and any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
-                write_msg(user_id, 'Неверный ввод! Введите Ваш город')
-            elif db.get_user(int(user_id))[1] == 405 and not any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]]):
+            elif db.get_user(int(user_id))[1] == 405 and request.strip() not in get_city_list('cities.json'): #any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]])
+                write_msg(user_id, 'Город введён неверно')
+            elif db.get_user(int(user_id))[1] == 405 and request.strip() in get_city_list('cities.json'):
                 #user_info[user_id]['user_city_title'] = request.strip()
                 db.update_user(int(user_id), city=request.strip())
                 write_msg(user_id, 'Принято')
