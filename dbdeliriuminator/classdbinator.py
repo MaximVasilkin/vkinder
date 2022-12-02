@@ -324,7 +324,95 @@ class DeliriumBDinator:
             sql_delete_f = "DELETE FROM favorites WHERE vk_id = %s;"
             cursor.execute(sql_delete_f, (favorites_id,))
         return True
-    # ---------------------- end dbdelirium  ----------------------------------------------
+
+    # last person ---------------------------------------------------------------
+    def set_last_send_person(self, user_id, last_id, date=None, name=None,
+                             surname=None, birthday=None, age=None, sex=None, city=None,
+                             data=None, photo_1=None, photo_2=None, photo_3=None):
+        """ добавление последнего просмотренного
+        (self, user_id, last_id, date=None, name=None,
+        surname=None, birthday=None, age=None, sex=None, city=None,
+        data=None, photo_1=None, photo_2=None, photo_3=None)"""
+        if date is None:
+            date = datetime.datetime.now().timestamp()
+        if user_id == last_id:
+            return False
+            # raise ErrorEquelId
+        with self.connection, self.connection.cursor() as cursor:
+            # проверка наличия записи ------------------------------
+            sql_check = "SELECT user_id FROM last_send_person WHERE user_id = %s"
+            cursor.execute(sql_check, (user_id,))
+            if cursor.fetchone() is None:
+                # добавляем пользователя
+                sql_insert = """INSERT INTO last_send_person(user_id, last_id, 
+                                user_date, user_name, user_surname, user_birthday,
+                                user_age, user_sex, user_city, user_data,
+                                user_photo_1, user_photo_2, user_photo_3) 
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+                cursor.execute(sql_insert, (user_id, last_id, date, name, surname,
+                                            birthday, age, sex, city, data, photo_1, photo_2, photo_3))
+                return True
+            sql_update = """UPDATE last_send_person
+                                SET last_id = %s, 
+                                user_date = %s, user_name = %s, user_surname = %s, user_birthday = %s,
+                                user_age = %s, user_sex = %s, user_city = %s, user_data = %s,
+                                user_photo_1 = %s, user_photo_2 = %s, user_photo_3 = %s
+                                WHERE user_id = %s;"""
+            cursor.execute(sql_update, (last_id, date, name, surname,
+                                        birthday, age, sex, city, data, photo_1, photo_2, photo_3, user_id))
+        return True
+
+    def get_last_send_person(self, user_id):
+        """ получение данных последнего просмотренного
+        (self, user_id) """
+
+        with self.connection, self.connection.cursor() as cursor:
+            # проверка наличия записи ------------------------------
+            sql_select = "SELECT * FROM last_send_person WHERE user_id = %s"
+            cursor.execute(sql_select, (user_id,))
+            result = cursor.fetchone()
+            message = f'{result[4]} {result[5]}\n{result[13]}'
+            attachments = [photo for photo in result[10:13] if photo]
+        return message, attachments, result[2]
+
+    # find people -----------------------------------------------------------------------------
+
+    def add_find_people(self, vk_id, list_of_dicts, date=None):
+        """ добавляет список найденных vk_id в список найденных.
+        (self, vk_id, find_ids) """
+        if date is None:
+            date = datetime.datetime.now().timestamp()
+        with self.connection, self.connection.cursor() as cursor:
+            # проверка наличия записи ------------------------------
+            for person in list_of_dicts:
+                sql_insert = """INSERT INTO find_people(user_id, find_people_id, seen_flag, find_people_date, user_name, user_surname, user_data)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s);"""
+                cursor.execute(sql_insert, (vk_id, person['id'], False, date, person["first_name"], person["last_name"], f'https://vk.com/id{person["id"]}'))
+
+    def get_next_person(self, vk_id: int):
+        """ получение данных
+        (self, vk_id) """
+
+        with self.connection, self.connection.cursor() as cursor:
+            sql_select = "SELECT find_people_id, user_name, user_surname, user_data FROM find_people WHERE user_id = %s AND seen_flag = False"
+            cursor.execute(sql_select, (vk_id,))
+            result = cursor.fetchone()
+            if result:                # not SEEN
+                sql_mark_as_seen = "UPDATE find_people SET seen_flag = True WHERE user_id = %s AND find_people_id = %s"
+                cursor.execute(sql_mark_as_seen, (vk_id, result[0]))
+
+        return result
+
+    def is_find_people(self, user_id: int, last_id: int):
+        """ проверка наличия id в найденных у пользователя
+        (self, vk_id) """
+        with self.connection, self.connection.cursor() as cursor:
+            sql_select = "SELECT last_id FROM find_people WHERE user_id = %s AND last_id=%s"
+            cursor.execute(sql_select, (user_id, last_id))
+            result = cursor.fetchone()
+        return result
+
+# ---------------------- end dbdelirium  ----------------------------------------------
 
 # ---------- CREATE TABLES and DROP
 
@@ -363,6 +451,36 @@ sql_create_u_f = """CREATE TABLE IF NOT EXISTS user_favorites (
     CONSTRAINT pk PRIMARY KEY (user_id, favorites_id)
 );"""
 
+# табоица найденных людей
+sql_create_last_send_person = """CREATE TABLE IF NOT EXISTS last_send_person (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES vk_user(vk_id),
+    last_id INTEGER NOT NULL,
+    user_date INTEGER NOT NULL,
+    user_name VARCHAR(50),
+    user_surname VARCHAR(60),
+    user_birthday INTEGER,
+    user_age SMALLINT,
+    user_city  VARCHAR(60),
+    user_sex BOOLEAN, -- 0 - male 1 - female
+    user_photo_1 VARCHAR(60),
+    user_photo_2 VARCHAR(60),
+    user_photo_3 VARCHAR(60),
+    user_data VARCHAR(60));"""
+
+# -- многие ко многим (1 вариант) id-шники
+sql_create_find_people = """CREATE TABLE IF NOT EXISTS find_people (
+    user_id INTEGER REFERENCES vk_user(vk_id),
+    find_people_id INTEGER NOT NULL,
+    seen_flag BOOLEAN,
+    find_people_date INTEGER NOT NULL,
+    user_name VARCHAR(50),
+    user_surname VARCHAR(60),
+    user_data VARCHAR(60),
+    CONSTRAINT pk_fp PRIMARY KEY (user_id, find_people_id)
+);"""
+
+
 def get_connection(*, username=None, password=None, database=None, hostname='localhost'):
     """ возвращает соединение с СУБД по настройкам возвращаемым
         getconfig """
@@ -385,10 +503,13 @@ def create_tables():
             cursor.execute(sql_create_vk_user)
             cursor.execute(sql_create_favorites)
             cursor.execute(sql_create_u_f)
+            cursor.execute(sql_create_last_send_person)
+            cursor.execute(sql_create_find_people)
         connection.commit()
     finally:
         connection.close()
     return
+
 
 def drop_tables():
     connection = get_connection()
@@ -398,9 +519,13 @@ def drop_tables():
             sql_drop_favorites = """DROP TABLE favorites;"""
 
             sql_drop_u_f = """DROP TABLE user_favorites;"""
+            sql_drop_find_people = """DROP TABLE find_people;"""
+            sql_drop_last_send_person = """DROP TABLE last_send_person;"""
             cursor.execute(sql_drop_u_f)
-            cursor.execute(sql_drop_vk_user)
             cursor.execute(sql_drop_favorites)
+            cursor.execute(sql_drop_find_people)
+            cursor.execute(sql_drop_last_send_person)
+            cursor.execute(sql_drop_vk_user)
         connection.commit()
     finally:
         connection.close()

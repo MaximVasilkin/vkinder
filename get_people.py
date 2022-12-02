@@ -60,32 +60,26 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
                                                     'age_to': str(user_age + 3),     # ищем анкеты +-3 года от возраста пользователя
                                                     'has_photo': '1'})             # строго с фото
     people = response['items']  # тут список найденных людей
-    return people
+    return [person for person in people if not person['is_closed']]
 
 
-def content_generator(list_of_people, my_token_api_object):
+def content_generator(one_person_list, my_token_api_object):
     '''
     :param list_of_people: список найденных людей для знакомства. Функция find_people
     :param my_token_api_object: объект апи, возвращаемый функцией authorize
     :return: возвращает генератор ПАРАМЕТРОВ сообщений. Параметры для ВК метода message.send, это для бота
     '''
-    for person in list_of_people:
-        if not person['is_closed']:  # closed - закрытый профиль, фотки у такого не собрать
-            person_name = f'{person["first_name"]} {person["last_name"]}'
-            person_id = person['id']
-            person_link = f'https://vk.com/id{person_id}'
-            message = f'{person_name}\n{person_link}'
-            sleep(DELAY)
-            avatars = my_token_api_object.photos.get(**{'owner_id': person_id,
-                                                         'album_id': 'profile',
-                                                         'rev': '1',            #  берём самые свежие фото
-                                                         'extended': '1',
-                                                         'count': '1000'})['items']
-            avatars.sort(key=lambda x: x['likes']['count'])
-            avatars = avatars[-3:]
-            three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
-            attachment = ','.join(three_most_liked)
-            yield message, attachment, int(person_id)
+    person_id = one_person_list[0]
+    sleep(DELAY)
+    avatars = my_token_api_object.photos.get(**{'owner_id': person_id,
+                                                 'album_id': 'profile',
+                                                 'rev': '1',            #  берём самые свежие фото
+                                                 'extended': '1',
+                                                 'count': '1000'})['items']
+    avatars.sort(key=lambda x: x['likes']['count'])
+    avatars = avatars[-3:]
+    three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
+    return *one_person_list, three_most_liked
 
 
 def create_keyboard(start=False, main=False, favorites=False, yes_no=False):
@@ -116,8 +110,6 @@ KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕ
 
 if __name__ == '__main__':
     user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get
-    generator_of_messages = content_generator('1', user_api_object)
-
-    for message_params in generator_of_messages:
-        print(message_params)
-
+    info = get_user_info(1, user_api_object)
+    people_list = find_people(*info, user_api_object)
+    content = next(content_generator(people_list, user_api_object))
