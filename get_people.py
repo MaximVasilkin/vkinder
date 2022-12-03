@@ -1,25 +1,8 @@
-import vk_api
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from time import sleep
 from datetime import datetime
-from random import randrange
 
 
-def authorize(path, my_token=False, bot_token=False):
-    '''
-    :param path: путь к файлу с токенами, в котором первая строка - личный токен, вторая - токен сообществ
-    :param my_token: какой токен использовать для ВК API
-    :param bot_token: какой токен использовать для ВК API
-    :return: функция возвращает object - объект VK API, к которому применяются методы от VK API.
-    Например: object.photos.get(count=100, offset=0, owner_id=1)
-    '''
-
-    with open(path, 'r', encoding='utf-8') as file:
-        user_token, public_token = file.readlines()
-    if my_token:
-        return vk_api.VkApi(token=user_token, api_version='5.131').get_api()
-    elif bot_token:
-        return vk_api.VkApi(token=public_token, api_version='5.131')
+DELAY = 0.34  # задержка перед запросом к апи
 
 
 def get_user_info(user_name_or_id, my_token_api_object):
@@ -81,32 +64,6 @@ def content_generator(one_person_list, my_token_api_object):
     three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars]
     return *one_person_list, three_most_liked
 
-
-def create_keyboard(start=False, main=False, favorites=False, yes_no=False):
-    keyboard = VkKeyboard(one_time=True)
-    if start:
-        keyboard.add_button('Старт', color=VkKeyboardColor.POSITIVE)
-    elif main:
-        keyboard.add_button('Ещё', color=VkKeyboardColor.POSITIVE)
-        keyboard.add_button('Стоп', color=VkKeyboardColor.NEGATIVE)
-        keyboard.add_line()
-        keyboard.add_button('Добавить в избранное', color=VkKeyboardColor.PRIMARY)
-        keyboard.add_button('Открыть избранное', color=VkKeyboardColor.SECONDARY)
-    elif favorites:
-        keyboard.add_button('Удалить', color=VkKeyboardColor.NEGATIVE)
-        keyboard.add_button('Главное меню', color=VkKeyboardColor.PRIMARY)
-    elif yes_no:
-        keyboard.add_button('Да', color=VkKeyboardColor.POSITIVE)
-        keyboard.add_button('Нет', color=VkKeyboardColor.NEGATIVE)
-    return keyboard.get_keyboard()
-
-
-DELAY = 0.34  # задержка перед запросом к апи
-
-KEYBOARD_start = create_keyboard(start=True)            # Кнопка СТАРТ
-KEYBOARD_main = create_keyboard(main=True)              # Главное меню
-KEYBOARD_favorites = create_keyboard(favorites=True)    # Меню избранного
-KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕТ
 
 if __name__ == '__main__':
     pass

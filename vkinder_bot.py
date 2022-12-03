@@ -1,9 +1,11 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from get_people import *
+from get_people import DELAY, get_user_info, find_people, content_generator
 from dbdeliriuminator.classdbinator import *
-import json
 from cities import get_city_list
+from keyboards import KEYBOARD_start, KEYBOARD_main, KEYBOARD_yes_or_no, KEYBOARD_favorites
+from random import randrange
+from time import sleep
 
 
 def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder'):
@@ -121,16 +123,20 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         db.update_user(int(user_id), position=405)
                         write_msg(user_id, 'Введите Ваш Город')
 
-                elif position == 405 and request.strip() in get_city_list('cities.json'):
-                    db.update_user(int(user_id), city=request.strip())
-                    write_msg(user_id, 'Принято')
-                    if db.get_user(int(user_id))[-4]:
-                        data = db.get_user(int(user_id))
-                        start(user_sex=data[-4], user_age=data[-3],
-                              user_city_title=data[-2], vk_me=vk_me)
-                    else:
-                        db.update_user(int(user_id), position=404)
-                        write_msg(user_id, 'Введите Ваш Возраст')
+                elif position == 405:
+                    try:
+                        index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-', ' '))
+                        db.update_user(int(user_id), city=get_city_list('cities.json')[1][index])
+                        write_msg(user_id, 'Принято')
+                        if db.get_user(int(user_id))[-4]:
+                            data = db.get_user(int(user_id))
+                            start(user_sex=data[-4], user_age=data[-3],
+                                  user_city_title=data[-2], vk_me=vk_me)
+                        else:
+                            db.update_user(int(user_id), position=404)
+                            write_msg(user_id, 'Введите Ваш Возраст')
+                    except ValueError:
+                        write_msg(user_id, 'Неверный ввод! Введите Ваш город')
 
                 elif position == 1 and request == 'Ещё':
                     send_next_person()
@@ -184,9 +190,3 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
 
                 else:
                     write_msg(user_id, 'Не поняла вашего ответа...')
-
-
-if __name__ == '__main__':
-    with open('tokens.ini', 'r', encoding='utf-8') as file:
-        user_token, public_token = file.readlines()
-    bot(user_token=user_token, public_token=public_token, db_password='pstpwd')
