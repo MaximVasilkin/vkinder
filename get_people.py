@@ -57,8 +57,8 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
                                                     'sex': 1 if user_sex else 2,
                                                     'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
                                                     'age_from': str(user_age - 3),
-                                                    'age_to': str(user_age + 3),     # ищем анкеты +-3 года от возраста пользователя
-                                                    'has_photo': '1'})             # строго с фото
+                                                    'age_to': str(user_age + 3),      # ищем анкеты +-3 года от возраста пользователя
+                                                    'has_photo': '1'})                # строго с фото
     people = response['items']  # тут список найденных людей
     return [person for person in people if not person['is_closed']]
 
@@ -78,7 +78,7 @@ def content_generator(one_person_list, my_token_api_object):
                                                  'count': '1000'})['items']
     avatars.sort(key=lambda x: x['likes']['count'])
     avatars = avatars[-3:]
-    three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars] # [max(photo['sizes'], key=lambda x: x['width'])['url'] for photo in avatars]
+    three_most_liked = [f'photo{photo["owner_id"]}_{photo["id"]}' for photo in avatars]
     return *one_person_list, three_most_liked
 
 
@@ -109,7 +109,4 @@ KEYBOARD_favorites = create_keyboard(favorites=True)    # Меню избран�
 KEYBOARD_yes_or_no = create_keyboard(yes_no=True)       # Кнопки ДА НЕТ
 
 if __name__ == '__main__':
-    user_api_object = authorize('tokens.ini', my_token=True)  # тут объект, созданный на основе личного токена. От него будут апи-запросы, вроде users.search, photos.get
-    info = get_user_info(1, user_api_object)
-    people_list = find_people(*info, user_api_object)
-    content = next(content_generator(people_list, user_api_object))
+    pass

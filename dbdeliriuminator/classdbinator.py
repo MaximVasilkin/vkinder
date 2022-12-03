@@ -9,7 +9,7 @@ import datetime
 def getconfig():
     configdict = {'hostname': 'localhost',
                   'username': 'postgres',
-                  'password': 'pstpwd',
+                  'password': '1234',
                   'database': 'vkinder'
                  }
     return configdict
@@ -25,7 +25,7 @@ class DeliriumBDinator:
         """ инициализация класса (self, *, username=None, password=None, database=None)
         по умолчанию настройки берутся из self._getdeliriumdbconfig() """
         if username and password and database:
-            self.connection = self._get_connection()
+            self.connection = self._get_connection(username=username, password=password, database=database)
         else:
             self.connection = self._get_connection(username=username,
                                                    password=password,
