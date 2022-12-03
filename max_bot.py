@@ -24,18 +24,18 @@ keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда тольк�
 
 def write_msg(user_id, message='', attachment='', keyboard='', send_last=False):
     if not keyboard:
-        keyboard = keyboards[db.get_user(int(user_id))[1]]
+        keyboard = keyboards[db.get_position(int(user_id))]
     if send_last:
         last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(int(user_id))
         message = message + '\n' + last_send_person_info
         attachment = ','.join(last_send_person_photos)
-
     sleep(DELAY)
     vk_bot.method('messages.send', {'user_id': user_id,
                                     'message': message,
                                     'attachment': attachment,
                                     'keyboard': keyboard,
                                     'random_id': randrange(10 ** 7)})
+
 
 def __get_photos_args(list_of_photo):
     photos_dict = {'photo_1': None,
@@ -47,16 +47,20 @@ def __get_photos_args(list_of_photo):
         counter += 1
     return photos_dict
 
+
 def send_next_person(copy_person=True):
     person = db.get_next_person(int(user_id))
     if person:
         person_id, first_name, surname, link, photos = content_generator(person, vk_me)
         if copy_person:
-            db.set_last_send_person(int(user_id), int(person_id), name=first_name, surname=surname, data=link, **__get_photos_args(photos))
+            db.set_last_send_person(int(user_id), int(person_id),
+                                    name=first_name, surname=surname,
+                                    data=link, **__get_photos_args(photos))
         write_msg(user_id, f'{first_name} {surname}\n{link}', ','.join(photos))
     else:
         db.update_user(int(user_id), position=0)
-        write_msg(user_id, 'Нет анкет!') # Тут надо удалить из БД найденные анкеты старые ПРОСМОТРЕННЫЕ.
+        write_msg(user_id, 'Нет анкет!')
+        db.delete_find_people(int(user_id))
 
 
 def start(user_sex, user_age, user_city_title, vk_me):
@@ -71,7 +75,7 @@ def open_favorites(user_id):
     if favorites:
         db.update_user(int(user_id), position=3)
         write_msg(user_id, 'Ваше избранное:')
-        for favorite in favorites:  # БД
+        for favorite in favorites:
             message = f'{favorite[2]} {favorite[3]}\n{favorite[-3]}'
             attachment = ','.join([photo for photo in favorite[8:11] if photo])
             write_msg(user_id, message, attachment)
@@ -91,13 +95,14 @@ for event in longpoll.listen():
             if not db.is_user(int(user_id)):
                 db.add_user(int(user_id), position=0)
 
-            if db.get_user(int(user_id))[1] == 0 and request.lower() == "старт":
+            position = db.get_position(int(user_id))
 
+            if position == 0 and request.lower() == "старт":
 
-
-                if not any(db.get_user(int(user_id))[-3:-1]):  #БД
+                if not any(db.get_user(int(user_id))[-3:-1]):
                     user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
-                    db.update_user(int(user_id), sex=user_sex, age=user_age, city=user_city_title)
+                    db.update_user(int(user_id), sex=user_sex,
+                                   age=user_age, city=user_city_title)
                     if not user_age:
                         db.update_user(int(user_id), position=404)
                         write_msg(user_id, 'Введите Ваш возраст')
@@ -108,72 +113,76 @@ for event in longpoll.listen():
                         start(user_sex, user_age, user_city_title, vk_me)
                 else:
                     data = db.get_user(int(user_id))
-                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
+                    start(user_sex=data[-4], user_age=data[-3],
+                          user_city_title=data[-2], vk_me=vk_me)
 
-            elif db.get_user(int(user_id))[1] == 404 and not request.isdigit():
-                write_msg(user_id, 'Неверный ввод! Введите Ваш возраст')
-            elif db.get_user(int(user_id))[1] == 404 and request.isdigit():
+            elif position == 404 and request.isdigit() and int(request) < 70:
                 db.update_user(int(user_id), age=int(request))
                 write_msg(user_id, 'Принято')
                 if db.get_user(int(user_id))[-2]:
                     data = db.get_user(int(user_id))
-                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
+                    start(user_sex=data[-4], user_age=data[-3],
+                          user_city_title=data[-2], vk_me=vk_me)
                 else:
                     db.update_user(int(user_id), position=405)
                     write_msg(user_id, 'Введите Ваш Город')
 
-
-            elif db.get_user(int(user_id))[1] == 405 and request.strip() not in get_city_list('cities.json'): #any([item in request for item in [*digits, *punctuation.replace('-', ''), *whitespace[1:]]])
-                write_msg(user_id, 'Город введён неверно')
-            elif db.get_user(int(user_id))[1] == 405 and request.strip() in get_city_list('cities.json'):
+            elif position == 405 and request.strip() in get_city_list('cities.json'):
                 db.update_user(int(user_id), city=request.strip())
                 write_msg(user_id, 'Принято')
                 if db.get_user(int(user_id))[-4]:
                     data = db.get_user(int(user_id))
-                    start(user_sex=data[-4], user_age=data[-3], user_city_title=data[-2], vk_me=vk_me)
+                    start(user_sex=data[-4], user_age=data[-3],
+                          user_city_title=data[-2], vk_me=vk_me)
                 else:
                     db.update_user(int(user_id), position=404)
                     write_msg(user_id, 'Введите Ваш Возраст')
 
-
-
-            elif db.get_user(int(user_id))[1] == 1 and request == 'Ещё':
+            elif position == 1 and request == 'Ещё':
                 send_next_person()
 
-            elif db.get_user(int(user_id))[1] == 1 and request == 'Стоп':
+            elif position == 1 and request == 'Стоп':
                 db.update_user(int(user_id), position=0)
                 write_msg(user_id, 'Хорошего Вам дня!')
 
-            elif db.get_user(int(user_id))[1] == 1 and request == 'Добавить в избранное':
+            elif position == 1 and request == 'Добавить в избранное':
                 db.update_user(int(user_id), position=2)
-                write_msg(user_id, 'Вы уверены, что хотите добавить текущего пользователя в избранное?', send_last=True)
+                write_msg(user_id,
+                          'Вы уверены, что хотите добавить текущего пользователя в избранное?',
+                          send_last=True)
 
-            elif db.get_user(int(user_id))[1] == 2 and request == 'Да':
+            elif position == 2 and request == 'Да':
                 last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(int(user_id))
                 if db.is_favorites(last_id):
                     db.update_user(int(user_id), position=1)
-                    write_msg(user_id, 'Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info, ','.join(last_send_person_photos)) #БД
+                    write_msg(user_id,
+                              'Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
+                              ','.join(last_send_person_photos)) #БД
                 else:
-                    db.add_favorites(int(user_id), last_id, name=last_send_person_info.split('\n')[0].split()[0], surname=last_send_person_info.split('\n')[0].split()[1], data=last_send_person_info.split('\n')[1], **__get_photos_args(last_send_person_photos)) #БД !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WORK
+                    db.add_favorites(int(user_id), last_id,
+                                     name=last_send_person_info.split('\n')[0].split()[0],
+                                     surname=last_send_person_info.split('\n')[0].split()[1],
+                                     data=last_send_person_info.split('\n')[1],
+                                     **__get_photos_args(last_send_person_photos))
                     db.update_user(int(user_id), position=1)
                     write_msg(user_id, 'Добавлено!', send_last=True)
 
-            elif db.get_user(int(user_id))[1] == 2 and request == 'Нет':
+            elif position == 2 and request == 'Нет':
                 db.update_user(int(user_id), position=1)
                 write_msg(user_id, 'Не добавлено!', send_last=True)
 
-            elif db.get_user(int(user_id))[1] == 1 and request == 'Открыть избранное':
+            elif position == 1 and request == 'Открыть избранное':
                 open_favorites(user_id)
 
-            elif db.get_user(int(user_id))[1] == 3 and request == 'Главное меню':
+            elif position == 3 and request == 'Главное меню':
                 db.update_user(int(user_id), position=1)
                 write_msg(user_id, send_last=True)
 
-            elif db.get_user(int(user_id))[1] == 3 and request == 'Удалить':
+            elif position == 3 and request == 'Удалить':
                 db.update_user(int(user_id), position=4)
                 write_msg(user_id, 'Введите ID пользователя для удаления')
 
-            elif db.get_user(int(user_id))[1] == 4 and request.isdigit() and db.is_user_favorites(user_id, int(request)):
+            elif position == 4 and request.isdigit() and db.is_user_favorites(user_id, int(request)):
                 db.delete_favorites(user_id, int(request))
                 db.update_user(int(user_id), position=3)
                 write_msg(user_id, f'Пользователь с id {request} успешно удалён')
