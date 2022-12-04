@@ -70,7 +70,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
 
             def start(user_sex, user_age, user_city_title, vk_me):
                 db.update_user(int(user_id), position=1)
-                if not db.get_next_person(int(user_id)):
+                if not db.get_next_person(int(user_id), check=True):
                     db.add_find_people(user_id, find_people(user_sex, user_age, user_city_title, vk_me))
                 send_next_person()
 

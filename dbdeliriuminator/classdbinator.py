@@ -422,7 +422,7 @@ class DeliriumBDinator:
                                 VALUES (%s, %s, %s, %s, %s, %s, %s);"""
                 cursor.execute(sql_insert, (vk_id, person['id'], False, date, person["first_name"], person["last_name"], f'https://vk.com/id{person["id"]}'))
 
-    def get_next_person(self, vk_id: int):
+    def get_next_person(self, vk_id: int, check=False):
         """ получение данных
         (self, vk_id) """
 
@@ -430,7 +430,7 @@ class DeliriumBDinator:
             sql_select = "SELECT find_people_id, user_name, user_surname, user_data FROM find_people WHERE user_id = %s AND seen_flag = False"
             cursor.execute(sql_select, (vk_id,))
             result = cursor.fetchone()
-            if result:                # not SEEN
+            if result and not check:                # not SEEN
                 sql_mark_as_seen = "UPDATE find_people SET seen_flag = True WHERE user_id = %s AND find_people_id = %s"
                 cursor.execute(sql_mark_as_seen, (vk_id, result[0]))
 
