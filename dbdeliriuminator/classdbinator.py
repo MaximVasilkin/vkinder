@@ -9,7 +9,7 @@ import datetime
 def getconfig():
     configdict = {'hostname': 'localhost',
                   'username': 'postgres',
-                  'password': '1234',
+                  'password': 'pstpwd',
                   'database': 'vkinder'
                  }
     return configdict
@@ -598,5 +598,4 @@ def check():
 
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    drop_tables()
     create_tables()

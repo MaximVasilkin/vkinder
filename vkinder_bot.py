@@ -9,6 +9,7 @@ from time import sleep
 
 
 def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder'):
+    create_tables()
 
     db = DeliriumBDinator(username=db_user_name, password=db_password, database=db)
     vk_me = vk_api.VkApi(token=user_token, api_version='5.131').get_api()
@@ -30,7 +31,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
             last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(int(user_id))
             message = message + '\n' + last_send_person_info
             attachment = ','.join(last_send_person_photos)
-        sleep(DELAY)
+        sleep(0.06)
         vk_bot.method('messages.send', {'user_id': user_id,
                                         'message': message,
                                         'attachment': attachment,
@@ -93,7 +94,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
 
                 position = db.get_position(int(user_id))
 
-                if position == 0 and request.lower() == "старт":
+                if position == 0 and request.lower() == 'старт':
 
                     if not any(db.get_user(int(user_id))[-3:-1]):
                         user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
@@ -128,7 +129,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-', ' '))
                         db.update_user(int(user_id), city=get_city_list('cities.json')[1][index])
                         write_msg(user_id, 'Принято')
-                        if db.get_user(int(user_id))[-4]:
+                        if db.get_user(int(user_id))[-3]:
                             data = db.get_user(int(user_id))
                             start(user_sex=data[-4], user_age=data[-3],
                                   user_city_title=data[-2], vk_me=vk_me)
@@ -157,7 +158,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         db.update_user(int(user_id), position=1)
                         write_msg(user_id,
                                   'Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
-                                  ','.join(last_send_person_photos)) #БД
+                                  ','.join(last_send_person_photos))
                     else:
                         db.add_favorites(int(user_id), last_id,
                                          name=last_send_person_info.split('\n')[0].split()[0],
