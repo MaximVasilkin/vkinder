@@ -629,10 +629,5 @@ def get_connection(*, username=None, password=None, database=None, hostname='loc
 
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    db = DeliriumBDinator(username='postgres', password='1234', database='vkinder')
+    db = DeliriumBDinator(username='postgres', password='pstpwd', database='vkinder')
     db.drop_tables()
-    db.connect()
-    db.create_tables()
-    db.connect()
-    db.add_user(1, position=405)
-    print(db.get_user(1))
