@@ -9,7 +9,7 @@ import datetime
 def getconfig():
     configdict = {'hostname': 'localhost',
                   'username': 'postgres',
-                  'password': 'pstpwd',
+                  'password': '1234',
                   'database': 'vkinder'
                  }
     return configdict
@@ -69,11 +69,42 @@ class DeliriumBDinator:
         return self.connection.closed
 
     def connect(self):
-        if not self.connection.closed:
+        if self.connection.closed:
             self.connection = psycopg2.connect(host=self.host,
                                       user=self.user,
                                       password=self.password,
                                       database=self.database)
+
+    def create_tables(self):
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(sql_create_vk_user)
+                cursor.execute(sql_create_favorites)
+                cursor.execute(sql_create_u_f)
+                cursor.execute(sql_create_last_send_person)
+                cursor.execute(sql_create_find_people)
+            self.connection.commit()
+        finally:
+            self.connection.close()
+        return
+
+    def drop_tables(self):
+        try:
+            with self.connection.cursor() as cursor:
+                sql_drop_vk_user = """DROP TABLE vk_user;"""
+                sql_drop_favorites = """DROP TABLE favorites;"""
+
+                sql_drop_u_f = """DROP TABLE user_favorites;"""
+                sql_drop_find_people = """DROP TABLE find_people;"""
+                sql_drop_last_send_person = """DROP TABLE last_send_person;"""
+                cursor.execute(sql_drop_u_f)
+                cursor.execute(sql_drop_favorites)
+                cursor.execute(sql_drop_find_people)
+                cursor.execute(sql_drop_last_send_person)
+                cursor.execute(sql_drop_vk_user)
+            self.connection.commit()
+        finally:
+            self.connection.close()
 # ---------------------------------------------------------------------------------------------------------------
 
 
@@ -503,99 +534,105 @@ def get_connection(*, username=None, password=None, database=None, hostname='loc
                               database=database)
     return result
 
-def create_tables():
-    connection = get_connection()
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(sql_create_vk_user)
-            cursor.execute(sql_create_favorites)
-            cursor.execute(sql_create_u_f)
-            cursor.execute(sql_create_last_send_person)
-            cursor.execute(sql_create_find_people)
-        connection.commit()
-    finally:
-        connection.close()
-    return
-
-
-def drop_tables():
-    connection = get_connection()
-    try:
-        with connection.cursor() as cursor:
-            sql_drop_vk_user = """DROP TABLE vk_user;"""
-            sql_drop_favorites = """DROP TABLE favorites;"""
-
-            sql_drop_u_f = """DROP TABLE user_favorites;"""
-            sql_drop_find_people = """DROP TABLE find_people;"""
-            sql_drop_last_send_person = """DROP TABLE last_send_person;"""
-            cursor.execute(sql_drop_u_f)
-            cursor.execute(sql_drop_favorites)
-            cursor.execute(sql_drop_find_people)
-            cursor.execute(sql_drop_last_send_person)
-            cursor.execute(sql_drop_vk_user)
-        connection.commit()
-    finally:
-        connection.close()
-
-def check():
-    try:
-        create_tables()
-
-        vkinder = DeliriumBDinator()
-
-        # for user_id in range(1000000000, 1000000100, 10):
-        #     vkinder.add_user(user_id)
-        #     for favorit_id in range(user_id - 14, user_id, 2):
-        #         vkinder.add_favorites(user_id, favorit_id)
-
-        u = [1, 2, 3, 4]
-        f = [[2, 7, 8, 9], [1, 7, 8, 6], [2, 7, 8, 5], [2, 7, 8, 5]]
-        for user, fav in zip(u, f):
-            vkinder.add_user(user)
-            for f in fav:
-                vkinder.add_favorites(user, f)
-
-        input('push inter:')
-        vkinder.set_position(1, 1)
-        print('Позиция 1:', vkinder.get_position(1))
-        vkinder.set_position(1, 2)
-        print('Позиция 1:', vkinder.get_position(1))
-
-        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-        print(vkinder.add_favorites(4, 5))
-        vkinder.delete_favorites(4, 5)
-        print('у 4 удалили 5')
-        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-        vkinder.delete_favorites(1, 9)
-        print('у 1 удалили 9')
-        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-        print(vkinder.is_user_favorites(1, 9))
-        vkinder.delete_favorites(3, 5)
-        print('у 3 удалили 5')
-        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-        print(vkinder.is_user_favorites(3, 5))
-        vkinder.delete_user(2)
-        print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-        print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-        print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-        print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-        vkinder.close()
-
-    finally:
-        drop_tables()
+# def create_tables():
+#     connection = get_connection()
+#     try:
+#         with connection.cursor() as cursor:
+#             cursor.execute(sql_create_vk_user)
+#             cursor.execute(sql_create_favorites)
+#             cursor.execute(sql_create_u_f)
+#             cursor.execute(sql_create_last_send_person)
+#             cursor.execute(sql_create_find_people)
+#         connection.commit()
+#     finally:
+#         connection.close()
+#     return
+#
+#
+# def drop_tables():
+#     connection = get_connection()
+#     try:
+#         with connection.cursor() as cursor:
+#             sql_drop_vk_user = """DROP TABLE vk_user;"""
+#             sql_drop_favorites = """DROP TABLE favorites;"""
+#
+#             sql_drop_u_f = """DROP TABLE user_favorites;"""
+#             sql_drop_find_people = """DROP TABLE find_people;"""
+#             sql_drop_last_send_person = """DROP TABLE last_send_person;"""
+#             cursor.execute(sql_drop_u_f)
+#             cursor.execute(sql_drop_favorites)
+#             cursor.execute(sql_drop_find_people)
+#             cursor.execute(sql_drop_last_send_person)
+#             cursor.execute(sql_drop_vk_user)
+#         connection.commit()
+#     finally:
+#         connection.close()
+#
+# def check():
+#     try:
+#         create_tables()
+#
+#         vkinder = DeliriumBDinator()
+#
+#         # for user_id in range(1000000000, 1000000100, 10):
+#         #     vkinder.add_user(user_id)
+#         #     for favorit_id in range(user_id - 14, user_id, 2):
+#         #         vkinder.add_favorites(user_id, favorit_id)
+#
+#         u = [1, 2, 3, 4]
+#         f = [[2, 7, 8, 9], [1, 7, 8, 6], [2, 7, 8, 5], [2, 7, 8, 5]]
+#         for user, fav in zip(u, f):
+#             vkinder.add_user(user)
+#             for f in fav:
+#                 vkinder.add_favorites(user, f)
+#
+#         input('push inter:')
+#         vkinder.set_position(1, 1)
+#         print('Позиция 1:', vkinder.get_position(1))
+#         vkinder.set_position(1, 2)
+#         print('Позиция 1:', vkinder.get_position(1))
+#
+#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+#         print(vkinder.add_favorites(4, 5))
+#         vkinder.delete_favorites(4, 5)
+#         print('у 4 удалили 5')
+#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+#         vkinder.delete_favorites(1, 9)
+#         print('у 1 удалили 9')
+#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+#         print(vkinder.is_user_favorites(1, 9))
+#         vkinder.delete_favorites(3, 5)
+#         print('у 3 удалили 5')
+#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+#         print(vkinder.is_user_favorites(3, 5))
+#         vkinder.delete_user(2)
+#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
+#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
+#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
+#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
+#         vkinder.close()
+#
+#     finally:
+#         drop_tables()
 
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    create_tables()
+    db = DeliriumBDinator(username='postgres', password='1234', database='vkinder')
+    db.drop_tables()
+    db.connect()
+    db.create_tables()
+    db.connect()
+    db.add_user(1, position=405)
+    print(db.get_user(1))
