@@ -8,7 +8,7 @@ DELAY = 0.34  # задержка перед запросом к апи
 def get_user_info(user_name_or_id, my_token_api_object):
     '''
     :param user_name_or_id: id или имя пользователя, например: 1 или paveldurov
-    :param my_token_api_object: объект, возвращенный от функции authorize(path, my_token=True)
+    :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: возвращает кортеж данных о пользователе: возраст, город, пол
     '''
     sleep(DELAY)
@@ -48,9 +48,9 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
 
 def content_generator(one_person_list, my_token_api_object):
     '''
-    :param list_of_people: список найденных людей для знакомства. Функция find_people
-    :param my_token_api_object: объект апи, возвращаемый функцией authorize
-    :return: возвращает генератор ПАРАМЕТРОВ сообщений. Параметры для ВК метода message.send, это для бота
+    :param one_person_list: список данных о текущей персоне из списка найденных людей для знакомства.
+    :param my_token_api_object: vk_api.VkApi(token=user_token, api_version='5.131').get_api()
+    :return: Параметры для ВК метода message.send, это для бота
     '''
     person_id = one_person_list[0]
     sleep(DELAY)

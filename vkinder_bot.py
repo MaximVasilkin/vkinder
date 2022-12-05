@@ -5,13 +5,13 @@ from dbdeliriuminator.classdbinator import *
 from cities import get_city_list
 from keyboards import KEYBOARD_start, KEYBOARD_main, KEYBOARD_yes_or_no, KEYBOARD_favorites
 from random import randrange
-from time import sleep
+from time import sleep, time
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from urllib3.exceptions import ReadTimeoutError
 
 
-def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder'):
+def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder', memory_days=0):
     while True:
         try:
             db = DeliriumBDinator(username=db_user_name, password=db_password, database=db)
@@ -101,6 +101,11 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         position = db.get_position(int(user_id))
 
                         if position == 0 and request.lower() == 'старт':
+
+                            if time() - db.get_user(int(user_id))[2] > (memory_days * 86400) if memory_days else -1:
+                                db.delete_last_send_person(int(user_id))
+                                db.delete_find_people(int(user_id))
+                                db.update_user(int(user_id), age=0, city='', date=time())
 
                             if not any(db.get_user(int(user_id))[-3:-1]):
                                 user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)

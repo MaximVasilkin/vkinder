@@ -1,5 +1,3 @@
-# deliriumdb.py
-
 import psycopg2
 import datetime
 
@@ -162,39 +160,39 @@ class DeliriumBDinator:
         """ изменяем данные пользователя
         (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None)"""
         with self.connection, self.connection.cursor() as cursor:
-            if position != None:
+            if position is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_position = %s
                             WHERE vk_id = %s;""", (position, vk_id))
-            if date:
+            if date is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_date = %s
                             WHERE vk_id = %s;""", (date, vk_id))
-            if name:
+            if name is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_name = %s
                             WHERE vk_id = %s;""", (name, vk_id))
-            if surname:
+            if surname is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_surname = %s
                             WHERE vk_id = %s;""", (surname, vk_id))
-            if birthday:
+            if birthday is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_birthday = %s
                             WHERE vk_id = %s;""", (birthday, vk_id))
-            if age:
+            if age is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_age = %s
                             WHERE vk_id = %s;""", (age, vk_id))
-            if sex:
+            if sex is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_sex = %s
                             WHERE vk_id = %s;""", (sex, vk_id))
-            if city:
+            if city is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_city = %s
                             WHERE vk_id = %s;""", (city, vk_id))
-            if data:
+            if data is not None:
                 cursor.execute("""UPDATE vk_user
                             SET user_data = %s
                             WHERE vk_id = %s;""", (data, vk_id))
@@ -408,6 +406,11 @@ class DeliriumBDinator:
             attachments = [photo for photo in result[10:13] if photo]
         return message, attachments, result[2]
 
+    def delete_last_send_person(self, vk_id):
+        with self.connection, self.connection.cursor() as cursor:
+            sql = "DELETE FROM last_send_person WHERE user_id = %s"
+            cursor.execute(sql, (vk_id,))
+
     # find people -----------------------------------------------------------------------------
 
     def add_find_people(self, vk_id, list_of_dicts, date=None):
@@ -534,100 +537,7 @@ def get_connection(*, username=None, password=None, database=None, hostname='loc
                               database=database)
     return result
 
-# def create_tables():
-#     connection = get_connection()
-#     try:
-#         with connection.cursor() as cursor:
-#             cursor.execute(sql_create_vk_user)
-#             cursor.execute(sql_create_favorites)
-#             cursor.execute(sql_create_u_f)
-#             cursor.execute(sql_create_last_send_person)
-#             cursor.execute(sql_create_find_people)
-#         connection.commit()
-#     finally:
-#         connection.close()
-#     return
-#
-#
-# def drop_tables():
-#     connection = get_connection()
-#     try:
-#         with connection.cursor() as cursor:
-#             sql_drop_vk_user = """DROP TABLE vk_user;"""
-#             sql_drop_favorites = """DROP TABLE favorites;"""
-#
-#             sql_drop_u_f = """DROP TABLE user_favorites;"""
-#             sql_drop_find_people = """DROP TABLE find_people;"""
-#             sql_drop_last_send_person = """DROP TABLE last_send_person;"""
-#             cursor.execute(sql_drop_u_f)
-#             cursor.execute(sql_drop_favorites)
-#             cursor.execute(sql_drop_find_people)
-#             cursor.execute(sql_drop_last_send_person)
-#             cursor.execute(sql_drop_vk_user)
-#         connection.commit()
-#     finally:
-#         connection.close()
-#
-# def check():
-#     try:
-#         create_tables()
-#
-#         vkinder = DeliriumBDinator()
-#
-#         # for user_id in range(1000000000, 1000000100, 10):
-#         #     vkinder.add_user(user_id)
-#         #     for favorit_id in range(user_id - 14, user_id, 2):
-#         #         vkinder.add_favorites(user_id, favorit_id)
-#
-#         u = [1, 2, 3, 4]
-#         f = [[2, 7, 8, 9], [1, 7, 8, 6], [2, 7, 8, 5], [2, 7, 8, 5]]
-#         for user, fav in zip(u, f):
-#             vkinder.add_user(user)
-#             for f in fav:
-#                 vkinder.add_favorites(user, f)
-#
-#         input('push inter:')
-#         vkinder.set_position(1, 1)
-#         print('Позиция 1:', vkinder.get_position(1))
-#         vkinder.set_position(1, 2)
-#         print('Позиция 1:', vkinder.get_position(1))
-#
-#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-#         print(vkinder.add_favorites(4, 5))
-#         vkinder.delete_favorites(4, 5)
-#         print('у 4 удалили 5')
-#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-#         vkinder.delete_favorites(1, 9)
-#         print('у 1 удалили 9')
-#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-#         print(vkinder.is_user_favorites(1, 9))
-#         vkinder.delete_favorites(3, 5)
-#         print('у 3 удалили 5')
-#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-#         print(vkinder.is_user_favorites(3, 5))
-#         vkinder.delete_user(2)
-#         print('Фавориты 1:', vkinder.get_user_favorites_id(1))
-#         print('Фавориты 2:', vkinder.get_user_favorites_id(2))
-#         print('Фавориты 3:', vkinder.get_user_favorites_id(3))
-#         print('Фавориты 4:', vkinder.get_user_favorites_id(4))
-#         vkinder.close()
-#
-#     finally:
-#         drop_tables()
 
-# end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    db = DeliriumBDinator(username='postgres', password='pstpwd', database='vkinder')
+    db = DeliriumBDinator(username='postgres', password='1234', database='vkinder')
     db.drop_tables()
