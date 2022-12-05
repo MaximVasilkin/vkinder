@@ -30,7 +30,7 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     :param user_sex: инфо, возвращённое функцией get_user_info
     :param user_age: инфо, возвращённое функцией get_user_info
     :param user_city_title: инфо, возвращённое функцией get_user_info
-    :param my_token_api_object: объект, возвращенный от функции authorize(path, my_token=True)
+    :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: список найденных людей
     '''
     sleep(DELAY)
