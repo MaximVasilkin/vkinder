@@ -26,11 +26,11 @@ def trycloseinator(method):
 def decor_methods_dbinator(decorator):
     """ Применяет полученный декоратор к методам класса DeliriumBDinator
     по определенному условию или списку """
-    list_attr = ['get_user', 'get_user_favorites', 'get_user_favorites_id', 'add_user',
-                 'delete_user', 'update_user', 'set_position', 'get_position',
-                 'is_user', 'is_favorites', 'is_user_favorites',
-                 'get_favorites', 'add_favorites', 'update_favorites',
-                 'delete_favorites', 'set_last_send_person', 'get_last_send_person',
+    list_attr = ['create_tables', 'drop_tables', 'get_user', 'get_user_favorites',
+                 'get_user_favorites_id', 'add_user', 'delete_user', 'update_user',
+                 'set_position', 'get_position', 'is_user', 'is_favorites',
+                 'is_user_favorites', 'get_favorites', 'add_favorites', 'update_favorites',
+                 'delete_favorites', 'set_last_send_person', 'get_last_send_person', 'delete_last_send_person',
                  'add_find_people', 'get_next_person', 'is_find_people', 'delete_find_people']
     def decorate(mydbclass):
         for attr in list_attr:
@@ -81,36 +81,30 @@ class DeliriumBDinator:
 
     # create drop tables ------------------------------------------------------------------
     def create_tables(self):
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(sql_create_vk_user)
-                cursor.execute(sql_create_favorites)
-                cursor.execute(sql_create_u_f)
-                cursor.execute(sql_create_last_send_person)
-                cursor.execute(sql_create_find_people)
-            self.connection.commit()
-        finally:
-            self.connection.close()
-        return
+        """ создание таблиц
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!! Запросы !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! """
+        with self.connection.cursor() as cursor:
+            cursor.execute(sql_create_vk_user)
+            cursor.execute(sql_create_favorites)
+            cursor.execute(sql_create_u_f)
+            cursor.execute(sql_create_last_send_person)
+            cursor.execute(sql_create_find_people)
+        self.connection.commit()
 
     def drop_tables(self):
-        try:
-            with self.connection.cursor() as cursor:
-                sql_drop_vk_user = """DROP TABLE vk_user;"""
-                sql_drop_favorites = """DROP TABLE favorites;"""
-
-                sql_drop_u_f = """DROP TABLE user_favorites;"""
-                sql_drop_find_people = """DROP TABLE find_people;"""
-                sql_drop_last_send_person = """DROP TABLE last_send_person;"""
-                cursor.execute(sql_drop_u_f)
-                cursor.execute(sql_drop_favorites)
-                cursor.execute(sql_drop_find_people)
-                cursor.execute(sql_drop_last_send_person)
-                cursor.execute(sql_drop_vk_user)
-            self.connection.commit()
-        finally:
-            if self.connection:
-                self.connection.close()
+        """ удаление таблиц """
+        with self.connection.cursor() as cursor:
+            sql_drop_vk_user = """DROP TABLE vk_user;"""
+            sql_drop_favorites = """DROP TABLE favorites;"""
+            sql_drop_u_f = """DROP TABLE user_favorites;"""
+            sql_drop_find_people = """DROP TABLE find_people;"""
+            sql_drop_last_send_person = """DROP TABLE last_send_person;"""
+            cursor.execute(sql_drop_u_f)
+            cursor.execute(sql_drop_favorites)
+            cursor.execute(sql_drop_find_people)
+            cursor.execute(sql_drop_last_send_person)
+            cursor.execute(sql_drop_vk_user)
+        self.connection.commit()
 # end create drop ---------------------------------------------------------------------------------------------------------------
 
 
@@ -412,6 +406,11 @@ class DeliriumBDinator:
             attachments = [photo for photo in result[10:13] if photo]
         return message, attachments, result[2]
 
+    def delete_last_send_person(self, vk_id):
+        with self.connection, self.connection.cursor() as cursor:
+            sql = "DELETE FROM last_send_person WHERE user_id = %s"
+            cursor.execute(sql, (vk_id,))
+
     # find people -----------------------------------------------------------------------------
 
     def add_find_people(self, vk_id, list_of_dicts, date=None):
@@ -510,7 +509,7 @@ sql_create_last_send_person = """CREATE TABLE IF NOT EXISTS last_send_person (
     user_photo_3 VARCHAR(60),
     user_data VARCHAR(60));"""
 
-# -- многие ко многим (1 вариант) id-шники
+# -- один ко многим id-шники
 sql_create_find_people = """CREATE TABLE IF NOT EXISTS find_people (
     user_id INTEGER REFERENCES vk_user(vk_id),
     find_people_id INTEGER NOT NULL,
