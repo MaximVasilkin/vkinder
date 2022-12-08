@@ -1,7 +1,7 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import DELAY, get_user_info, find_people, content_generator
-from dbdeliriuminator.classdbinator import *
+from db.classdbinator import *
 from cities import get_city_list
 from keyboards import KEYBOARD_start, KEYBOARD_main, KEYBOARD_yes_or_no, KEYBOARD_favorites
 from random import randrange
@@ -77,7 +77,7 @@ def open_favorites(db, user_id, vk_bot):
 
 def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder', memory_days=0):
     """ бот """
-    db = DeliriumBDinator(username=db_user_name, password=db_password, database=db, tryclosemode=False)
+    db = DataBaseInator(username=db_user_name, password=db_password, database=db, tryclosemode=False)
     db.connect()
     db.create_tables()
 
