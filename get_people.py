@@ -15,11 +15,10 @@ def get_user_info(user_name_or_id, my_token_api_object):
     user_info = my_token_api_object.users.get(**{'user_ids': user_name_or_id,
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
-    try:
+    user_age = None
+    if user_birthday:
         birthday = datetime.strptime(user_birthday, "%d.%m.%Y")
         user_age = int(((datetime.today()-birthday).days)/365)
-    except TypeError:
-        user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
     return bool(user_sex - 1), user_age, user_city_title
@@ -30,7 +29,7 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     :param user_sex: инфо, возвращённое функцией get_user_info
     :param user_age: инфо, возвращённое функцией get_user_info
     :param user_city_title: инфо, возвращённое функцией get_user_info
-    :param my_token_api_object: объект, возвращенный от функции authorize(path, my_token=True)
+    :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: список найденных людей
     '''
     sleep(DELAY)
