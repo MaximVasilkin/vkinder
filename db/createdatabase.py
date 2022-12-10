@@ -81,7 +81,7 @@ SQL_DROP_TABLES = [(sql_drop_u_f,),
                      (sql_drop_last_send_person,),
                      (sql_drop_vk_user,)]
 
-def get_connection(*, username='postgres', password=PASSWORD, database='vkinder', hostname='localhost'):
+def get_connection(*, username='postgres', password='1234', database='vkinder', hostname='localhost'):
     """ возвращает соединение с СУБД по настройкам возвращаемым """
 
     result = psycopg2.connect(host=hostname,

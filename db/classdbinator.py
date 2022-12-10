@@ -3,7 +3,7 @@
 
 import psycopg2
 import datetime
-from createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
+from db.createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
 
 PASSWORD = '1234'
 

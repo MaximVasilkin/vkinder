@@ -244,4 +244,7 @@ fabric.properties
 
 # ээх
 .idea/
+*.ini
+*.txt
+exp.py
 
