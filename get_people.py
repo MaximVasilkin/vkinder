@@ -15,11 +15,10 @@ def get_user_info(user_name_or_id, my_token_api_object):
     user_info = my_token_api_object.users.get(**{'user_ids': user_name_or_id,
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
-    try:
+    user_age = None
+    if user_birthday:
         birthday = datetime.strptime(user_birthday, "%d.%m.%Y")
         user_age = int(((datetime.today()-birthday).days)/365)
-    except TypeError:
-        user_age = None
     user_city_title = user_info.get('city', {}).get('title', None) # str
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
     return bool(user_sex - 1), user_age, user_city_title

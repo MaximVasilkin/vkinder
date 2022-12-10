@@ -539,5 +539,5 @@ def get_connection(*, username=None, password=None, database=None, hostname='loc
 
 
 if __name__ == '__main__':
-    db = DeliriumBDinator(username='postgres', password='1234', database='vkinder')
+    db = DeliriumBDinator(username='postgres', password='pstpwd', database='vkinder')
     db.drop_tables()
