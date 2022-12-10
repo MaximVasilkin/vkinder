@@ -93,12 +93,12 @@ class DataBaseInator:
     def create_tables(self):
         """ создание таблиц """
         with self.connection, self.connection.cursor() as cursor:
-            cursor.executemany(SQL_CREATE_TABLES)
+            cursor.execute(SQL_CREATE_TABLES)
 
     def drop_tables(self):
         """ удаление таблиц """
         with self.connection, self.connection.cursor() as cursor:
-            cursor.executemany(SQL_DROP_TABLES)
+            cursor.execute(SQL_DROP_TABLES)
     # -------------------------------------------------------------------------------------------------------------
 
     def get_user_favorites(self, vk_id: int) -> list:
