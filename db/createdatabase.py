@@ -63,6 +63,23 @@ sql_create_find_people = """CREATE TABLE IF NOT EXISTS find_people (
     CONSTRAINT pk_fp PRIMARY KEY (user_id, find_people_id)
 );"""
 
+SQL_CREATE_TABLES = [(sql_create_vk_user,),
+                     (sql_create_favorites,),
+                     (sql_create_u_f,),
+                     (sql_create_last_send_person,),
+                     (sql_create_find_people,)]
+
+sql_drop_vk_user = """DROP TABLE vk_user;"""
+sql_drop_favorites = """DROP TABLE favorites;"""
+sql_drop_u_f = """DROP TABLE user_favorites;"""
+sql_drop_find_people = """DROP TABLE find_people;"""
+sql_drop_last_send_person = """DROP TABLE last_send_person;"""
+
+SQL_DROP_TABLES = [(sql_drop_u_f,),
+                     (sql_drop_favorites,),
+                     (sql_drop_find_people),
+                     (sql_drop_last_send_person,),
+                     (sql_drop_vk_user,)]
 
 def get_connection(*, username='postgres', password=PASSWORD, database='vkinder', hostname='localhost'):
     """ возвращает соединение с СУБД по настройкам возвращаемым """
@@ -93,12 +110,6 @@ def drop_tables():
     connection = get_connection()
     try:
         with connection.cursor() as cursor:
-            sql_drop_vk_user = """DROP TABLE vk_user;"""
-            sql_drop_favorites = """DROP TABLE favorites;"""
-
-            sql_drop_u_f = """DROP TABLE user_favorites;"""
-            sql_drop_find_people = """DROP TABLE find_people;"""
-            sql_drop_last_send_person = """DROP TABLE last_send_person;"""
             cursor.execute(sql_drop_u_f)
             cursor.execute(sql_drop_favorites)
             cursor.execute(sql_drop_find_people)

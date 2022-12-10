@@ -1,8 +1,9 @@
 
-# узрите, новый датабейзинатор
+# узрите, новый датабейзаинатор
 
 import psycopg2
 import datetime
+from createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
 
 PASSWORD = '1234'
 
@@ -88,6 +89,18 @@ class DataBaseInator:
             result = cursor.fetchone()
         return result
 
+    # create drop tables ----------------------------------------------------------------------------------------
+    def create_tables(self):
+        """ создание таблиц """
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.executemany(SQL_CREATE_TABLES)
+
+    def drop_tables(self):
+        """ удаление таблиц """
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.executemany(SQL_DROP_TABLES)
+    # -------------------------------------------------------------------------------------------------------------
+
     def get_user_favorites(self, vk_id: int) -> list:
         """ данные об избранных пользователя по vk_id таблицы vk_user """
         with self.connection, self.connection.cursor() as cursor:
@@ -133,42 +146,42 @@ class DataBaseInator:
         """ изменяем данные пользователя
         (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None)"""
         with self.connection, self.connection.cursor() as cursor:
-            if position != None:
+            if position is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_position = %s
-                            WHERE vk_id = %s;""", (position, vk_id))
-            if date:
+                                        SET user_position = %s
+                                        WHERE vk_id = %s;""", (position, vk_id))
+            if date is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_date = %s
-                            WHERE vk_id = %s;""", (date, vk_id))
-            if name:
+                                        SET user_date = %s
+                                        WHERE vk_id = %s;""", (date, vk_id))
+            if name is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_name = %s
-                            WHERE vk_id = %s;""", (name, vk_id))
-            if surname:
+                                        SET user_name = %s
+                                        WHERE vk_id = %s;""", (name, vk_id))
+            if surname is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_surname = %s
-                            WHERE vk_id = %s;""", (surname, vk_id))
-            if birthday:
+                                        SET user_surname = %s
+                                        WHERE vk_id = %s;""", (surname, vk_id))
+            if birthday is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_birthday = %s
-                            WHERE vk_id = %s;""", (birthday, vk_id))
-            if age:
+                                        SET user_birthday = %s
+                                        WHERE vk_id = %s;""", (birthday, vk_id))
+            if age is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_age = %s
-                            WHERE vk_id = %s;""", (age, vk_id))
-            if sex:
+                                        SET user_age = %s
+                                        WHERE vk_id = %s;""", (age, vk_id))
+            if sex is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_sex = %s
-                            WHERE vk_id = %s;""", (sex, vk_id))
-            if city:
+                                        SET user_sex = %s
+                                        WHERE vk_id = %s;""", (sex, vk_id))
+            if city is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_city = %s
-                            WHERE vk_id = %s;""", (city, vk_id))
-            if data:
+                                        SET user_city = %s
+                                        WHERE vk_id = %s;""", (city, vk_id))
+            if data is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_data = %s
-                            WHERE vk_id = %s;""", (data, vk_id))
+                                        SET user_data = %s
+                                        WHERE vk_id = %s;""", (data, vk_id))
 
     # Позиции .................................................................................................
     def set_position(self, vk_id, position):
@@ -300,7 +313,7 @@ class DataBaseInator:
                 cursor.execute("""UPDATE favorites
                             SET user_photo_3 = %s
                             WHERE id = %s;""", (photo_3, vk_id))
-        return  # просто бессмысленный ретурн
+
 
     def delete_favorites(self, user_id, favorites_id):
         """ Удалает пользователя из избранного пользователя.
