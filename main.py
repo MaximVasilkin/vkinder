@@ -6,4 +6,4 @@ if __name__ == '__main__':
         user_token, public_token = file.readlines()
     bot(user_token=user_token, public_token=public_token,
         db_user_name='postgres', db_password='1234', db='vkinder',
-        memory_days=3)
+        memory_days=5)
