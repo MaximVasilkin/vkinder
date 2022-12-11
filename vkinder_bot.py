@@ -5,6 +5,7 @@ from cities import get_city_list
 from menu import Command, Position
 from random import randrange
 from time import sleep, time
+from datetime import datetime
 from db.classdbinator import DataBaseInator
 from requests.exceptions import ReadTimeout
 from socket import timeout
@@ -54,16 +55,16 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
             db.update_user(user_id, position=0)
             write_msg(user_id, 'Нет анкет! Нажмите "Старт", чтобы повторить поиск')
 
-    def start(vk_me, user_sex=None, user_age=None, user_city_title=None):
+    def start(vk_me, user_sex=None, user_birth_year=None, user_city_title=None):
         write_msg(user_id, 'Анкеты скоро загрузятся. Пожалуйста, подождите &#128522;')
         db.update_user(user_id, position=1)
-        if not any([user_age, user_city_title]):
+        if not any([user_birth_year, user_city_title]):
             data = db.get_user(user_id)
             user_sex = data[-4]
-            user_age = data[-3]
+            user_birth_year = data[-5]
             user_city_title = data[-2]
         if not db.get_next_person(user_id, check=True):
-            db.add_find_people(str(user_id), find_people(user_sex, user_age, user_city_title, vk_me))
+            db.add_find_people(str(user_id), find_people(user_sex, user_birth_year, user_city_title, vk_me))
         send_next_person()
 
     def open_favorites(user_id):
@@ -104,18 +105,19 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         if position == Position.INTRO and request.capitalize() == Command.START:
                             user_db_info = db.get_user(user_id)
                             date = user_db_info[2]
-                            age, city = user_db_info[-3:-1]
+                            birth_year = user_db_info[-5]
+                            city = user_db_info[-2]
 
                             if time() - date > (memory_days * 86400) if memory_days else -1:
                                 db.delete_last_send_person(user_id)
                                 db.delete_find_people(user_id)
-                                db.update_user(user_id, age=0, city='', date=time())
+                                db.update_user(user_id, birthday=0, city='', date=time())
 
-                            if not any([age, city]):
-                                user_sex, user_age, user_city_title = get_user_info(user_id, vk_me)
+                            if not any([birth_year, city]):
+                                user_sex, user_birth_year, user_city_title = get_user_info(user_id, vk_me)
                                 db.update_user(user_id, sex=user_sex,
-                                               age=user_age, city=user_city_title)
-                                if not user_age:
+                                               birthday=user_birth_year, city=user_city_title)
+                                if not user_birth_year:
                                     db.update_user(user_id, position=404)
                                     write_msg(user_id, 'Введите Ваш возраст')
                                 elif not user_city_title:
@@ -123,16 +125,17 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                     write_msg(user_id, 'Введите Ваш Город')
                                 else:
                                     start(user_sex=user_sex,
-                                          user_age=user_age,
+                                          user_birth_year=user_birth_year,
                                           user_city_title=user_city_title,
                                           vk_me=vk_me)
                             else:
                                 start(vk_me)
 
                         elif position == Position.NEED_AGE and request.isdigit() and 10 < int(request) < 70:
-                            db.update_user(user_id, age=int(request))
+                            db.update_user(user_id, birthday=int(datetime.now().year - int(request)))
                             write_msg(user_id, 'Принято')
-                            if db.get_user(user_id)[-2]:
+                            city = db.get_user(user_id)[-2]
+                            if city:
                                 start(vk_me)
                             else:
                                 db.update_user(user_id, position=405)
@@ -143,7 +146,8 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                 index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-', ' '))
                                 db.update_user(user_id, city=get_city_list('cities.json')[1][index])
                                 write_msg(user_id, 'Принято')
-                                if db.get_user(user_id)[-3]:
+                                birthday = db.get_user(user_id)[-5]
+                                if birthday:
                                     start(vk_me)
                                 else:
                                     db.update_user(user_id, position=404)
@@ -172,10 +176,12 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                           '&#9940; Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
                                           ','.join(last_send_person_photos))
                             else:
+                                full_name, data = last_send_person_info.split('\n')
+                                name, surname = full_name.split()
                                 db.add_favorites(user_id, last_id,
-                                                 name=last_send_person_info.split('\n')[0].split()[0],
-                                                 surname=last_send_person_info.split('\n')[0].split()[1],
-                                                 data=last_send_person_info.split('\n')[1],
+                                                 name=name,
+                                                 surname=surname,
+                                                 data=data,
                                                  **__get_photos_args(last_send_person_photos))
                                 db.update_user(user_id, position=1)
                                 write_msg(user_id, '&#10004; Добавлено!', send_last=True)

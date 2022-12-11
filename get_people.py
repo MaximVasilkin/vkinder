@@ -1,5 +1,4 @@
 from time import sleep
-from datetime import datetime
 
 
 DELAY = 0.34  # задержка перед запросом к апи
@@ -15,16 +14,14 @@ def get_user_info(user_name_or_id, my_token_api_object):
     user_info = my_token_api_object.users.get(**{'user_ids': user_name_or_id,
                                                  'fields': 'bdate, city, sex'})[0]
     user_birthday = user_info.get('bdate', None) # str
-    user_age = None
     if user_birthday:
-        birthday = datetime.strptime(user_birthday, "%d.%m.%Y")
-        user_age = int(((datetime.today()-birthday).days)/365)
+        user_birthday = int(user_birthday[-4:])
     user_city_title = user_info.get('city', {}).get('title', None) # str
     user_sex = user_info['sex']  # int: 1 - женщина, 2 - мужчина
-    return bool(user_sex - 1), user_age, user_city_title
+    return bool(user_sex - 1), user_birthday, user_city_title
 
 
-def find_people(user_sex, user_age, user_city_title, my_token_api_object):
+def find_people(user_sex, user_birth_year, user_city_title, my_token_api_object):
     '''
     :param user_sex: инфо, возвращённое функцией get_user_info
     :param user_age: инфо, возвращённое функцией get_user_info
@@ -32,10 +29,8 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: список найденных людей
     '''
-    CURRENT_YEAR = datetime.today().year            # текущий год
-    WANTED_BIRTH_YEAR = CURRENT_YEAR - user_age     # год рождения для поиска ровесников
     AGE_RANGE = 5                                   # разброс в годах, +- к возрасту
-    for birth_year in range(WANTED_BIRTH_YEAR - AGE_RANGE, WANTED_BIRTH_YEAR + AGE_RANGE + 1):
+    for birth_year in range(user_birth_year - AGE_RANGE, user_birth_year + AGE_RANGE + 1):
         sleep(DELAY)
         response = my_token_api_object.users.search(**{'sort': '0',
                                                         'count': '1000',
