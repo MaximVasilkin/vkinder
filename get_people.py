@@ -32,17 +32,21 @@ def find_people(user_sex, user_age, user_city_title, my_token_api_object):
     :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: список найденных людей
     '''
-    sleep(DELAY)
-    response = my_token_api_object.users.search(**{'sort': '0',
-                                                    'count': '1000',
-                                                    'hometown': user_city_title,
-                                                    'sex': 1 if user_sex else 2,
-                                                    'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
-                                                    'age_from': str(user_age - 3),
-                                                    'age_to': str(user_age + 3),      # ищем анкеты +-3 года от возраста пользователя
-                                                    'has_photo': '1'})                # строго с фото
-    people = response['items']  # тут список найденных людей
-    return [person for person in people if not person['is_closed']]
+    CURRENT_YEAR = datetime.today().year            # текущий год
+    WANTED_BIRTH_YEAR = CURRENT_YEAR - user_age     # год рождения для поиска ровесников
+    AGE_RANGE = 5                                   # разброс в годах, +- к возрасту
+    for birth_year in range(WANTED_BIRTH_YEAR - AGE_RANGE, WANTED_BIRTH_YEAR + AGE_RANGE + 1):
+        sleep(DELAY)
+        response = my_token_api_object.users.search(**{'sort': '0',
+                                                        'count': '1000',
+                                                        'hometown': user_city_title,
+                                                        'sex': 1 if user_sex else 2,
+                                                        'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
+                                                        'birth_year': birth_year,
+                                                        'has_photo': '1'})                # строго с фото
+        people = response['items']  # тут список найденных людей
+        not_closed_profiles = [person for person in people if not person['is_closed']]
+        yield from not_closed_profiles
 
 
 def content_generator(one_person_list, my_token_api_object):

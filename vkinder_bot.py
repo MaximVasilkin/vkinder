@@ -1,11 +1,11 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import get_user_info, find_people, content_generator
-from dbdeliriuminator.classdbinator import *
 from cities import get_city_list
-from keyboards import KEYBOARD_start, KEYBOARD_main, KEYBOARD_yes_or_no, KEYBOARD_favorites
+from menu import Command, Position
 from random import randrange
 from time import sleep, time
+from db.classdbinator import DataBaseInator
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from urllib3.exceptions import ReadTimeoutError
@@ -13,25 +13,17 @@ from urllib3.exceptions import ReadTimeoutError
 
 def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder', memory_days=0):
 
-    db = DeliriumBDinator(username=db_user_name, password=db_password, database=db)
-    db.create_tables()
+    db = DataBaseInator(username=db_user_name, password=db_password, database=db)
     db.connect()
+    db.create_tables()
 
     vk_me = vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     vk_bot = vk_api.VkApi(token=public_token, api_version='5.131')
     longpoll = VkLongPoll(vk_bot)
 
-    keyboards = {0: KEYBOARD_start,       # Позиция 0. Когда только что пришёл - кнопка СТАРТ
-                 1: KEYBOARD_main,        # Позиция 1. Когда прошёл все проверки и нажал СТАРТ - кнопки: Ещё, Стоп, Добавить в избранное, Открыть избранное
-                 2: KEYBOARD_yes_or_no,   # Позиция 2. Когда нажал Добавить в избранное - кнопки: Да, Нет
-                 3: KEYBOARD_favorites,   # Позиция 3. Когда нажал Открыть избранное - кнопки: Удалить, В главное меню
-                 4: '',                   # Позиция 4. Когда просят ввести ID для удаления из избранного
-                 404: '',                 # Позиция 404. Когда нет возраста - нет кнопок
-                 405: ''}                 # Позиция 405. Когда нет города - нет кнопок
-
     def write_msg(user_id, message='', attachment='', keyboard='', send_last=False):
         if not keyboard:
-            keyboard = keyboards[db.get_position(user_id)]
+            keyboard = Position.get_keyboard_from_position(db.get_position(user_id))
         if send_last:
             last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(user_id)
             message = message + '\n' + last_send_person_info
@@ -59,9 +51,11 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
         else:
             db.delete_last_send_person(user_id)
             db.delete_find_people(user_id)
-            start(vk_me)
+            db.update_user(user_id, position=0)
+            write_msg(user_id, 'Нет анкет! Нажмите "Старт", чтобы повторить поиск')
 
     def start(vk_me, user_sex=None, user_age=None, user_city_title=None):
+        write_msg(user_id, 'Анкеты скоро загрузятся. Пожалуйста, подождите &#128522;')
         db.update_user(user_id, position=1)
         if not any([user_age, user_city_title]):
             data = db.get_user(user_id)
@@ -76,7 +70,8 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
         favorites = db.get_user_favorites(user_id)
         if favorites:
             db.update_user(user_id, position=3)
-            write_msg(user_id, 'Ваше избранное:')
+            emoji = '&#10024;' * 3
+            write_msg(user_id, f'{emoji} Ваше избранное {emoji}')
             for favorite in favorites:
                 name = favorite[2]
                 surname = favorite[3]
@@ -106,7 +101,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
 
                         position = db.get_position(user_id)
 
-                        if position == 0 and request.lower() == 'старт':
+                        if position == Position.INTRO and request.capitalize() == Command.START:
                             user_db_info = db.get_user(user_id)
                             date = user_db_info[2]
                             age, city = user_db_info[-3:-1]
@@ -134,7 +129,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             else:
                                 start(vk_me)
 
-                        elif position == 404 and request.isdigit() and int(request) < 70:
+                        elif position == Position.NEED_AGE and request.isdigit() and 10 < int(request) < 70:
                             db.update_user(user_id, age=int(request))
                             write_msg(user_id, 'Принято')
                             if db.get_user(user_id)[-2]:
@@ -143,7 +138,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                 db.update_user(user_id, position=405)
                                 write_msg(user_id, 'Введите Ваш Город')
 
-                        elif position == 405:
+                        elif position == Position.NEED_CITY:
                             try:
                                 index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-', ' '))
                                 db.update_user(user_id, city=get_city_list('cities.json')[1][index])
@@ -156,25 +151,25 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             except ValueError:
                                 write_msg(user_id, 'Неверный ввод! Введите Ваш город')
 
-                        elif position == 1 and request == 'Ещё':
+                        elif position == Position.IN_MAIN_MENU and request == Command.NEXT_PERSON:
                             send_next_person()
 
-                        elif position == 1 and request == 'Стоп':
+                        elif position == Position.IN_MAIN_MENU and request == Command.STOP:
                             db.update_user(user_id, position=0)
-                            write_msg(user_id, 'Хорошего Вам дня!')
+                            write_msg(user_id, 'Хорошего Вам дня! &#127808;')
 
-                        elif position == 1 and request == 'Добавить в избранное':
+                        elif position == Position.IN_MAIN_MENU and request == Command.ADD_TO_FAVORITE:
                             db.update_user(user_id, position=2)
                             write_msg(user_id,
-                                      'Вы уверены, что хотите добавить текущего пользователя в избранное?',
+                                      '&#128142; Вы уверены, что хотите добавить текущего пользователя в избранное?',
                                       send_last=True)
 
-                        elif position == 2 and request == 'Да':
+                        elif position == Position.IN_ADD_FAVORITE_MENU and request == Command.YES:
                             last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(user_id)
                             if db.is_favorites(last_id):
                                 db.update_user(user_id, position=1)
                                 write_msg(user_id,
-                                          'Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
+                                          '&#9940; Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
                                           ','.join(last_send_person_photos))
                             else:
                                 db.add_favorites(user_id, last_id,
@@ -183,30 +178,31 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                                  data=last_send_person_info.split('\n')[1],
                                                  **__get_photos_args(last_send_person_photos))
                                 db.update_user(user_id, position=1)
-                                write_msg(user_id, 'Добавлено!', send_last=True)
+                                write_msg(user_id, '&#10004; Добавлено!', send_last=True)
 
-                        elif position == 2 and request == 'Нет':
+                        elif position == Position.IN_ADD_FAVORITE_MENU and request == Command.NO:
                             db.update_user(user_id, position=1)
-                            write_msg(user_id, 'Не добавлено!', send_last=True)
+                            write_msg(user_id, '&#10060; Не добавлено!', send_last=True)
 
-                        elif position == 1 and request == 'Открыть избранное':
+                        elif position == Position.IN_MAIN_MENU and request == Command.OPEN_FAVORITE:
                             open_favorites(user_id)
 
-                        elif position == 3 and request == 'Главное меню':
+                        elif position == Position.IN_FAVORITE_MENU and request == Command.OPEN_MAIN_MENU:
                             db.update_user(user_id, position=1)
                             write_msg(user_id, send_last=True)
 
-                        elif position == 3 and request == 'Удалить':
+                        elif position == Position.IN_FAVORITE_MENU and request == Command.DELETE:
                             db.update_user(user_id, position=4)
-                            write_msg(user_id, 'Введите ID пользователя для удаления')
+                            write_msg(user_id, '&#128148; Введите ID пользователя для удаления')
 
-                        elif position == 4 and request.isdigit() and db.is_user_favorites(user_id, request):
+                        elif position == Position.IN_DELETE_FAVORITE_MENU \
+                                and request.isdigit() and db.is_user_favorites(user_id, request):
                             db.delete_favorites(user_id, request)
                             db.update_user(user_id, position=3)
-                            write_msg(user_id, f'Пользователь с id {request} успешно удалён')
+                            write_msg(user_id, f'&#128687; Пользователь с id {request} успешно удалён')
                             open_favorites(user_id)
 
                         else:
-                            write_msg(user_id, 'Не поняла вашего ответа...')
+                            write_msg(user_id, '&#128019; Не поняла вашего ответа...')
         except (ReadTimeout, timeout, ReadTimeoutError):
             sleep(0.03)
