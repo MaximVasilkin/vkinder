@@ -1,110 +1,84 @@
+
+# узрите, новый датабейзаинатор
+
 import psycopg2
 import datetime
+from db.createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
 
-# Эта функция вставляет пароль и в тест и в класс
-# также есть неработающие дубли этой функции и
-# пароль можно ввести в класс при инициализации
-def getconfig():
-    configdict = {'hostname': 'localhost',
-                  'username': 'postgres',
-                  'password': '1234',
-                  'database': 'vkinder'
-                 }
-    return configdict
+PASSWORD = '1234'
 
-# deliriumdb.py
-# узрите, новый делириуминатор
-
-# ---------------------- dbdelirium ---------------------------------------------
-
-class DeliriumBDinator:
-
-    def __init__(self, *, username=None, password=None, database=None):
-        """ инициализация класса (self, *, username=None, password=None, database=None)
-        по умолчанию настройки берутся из self._getdeliriumdbconfig() """
-        if username and password and database:
-            self.connection = self._get_connection(username=username, password=password, database=database)
+# декораторы --------------------------------------------------------------------------------------
+def trycloseinator(method):
+    ''' Декоратор, декорирующий функции класс БД таким образом, что если
+    флаг self.tryclosemode = True при каждом вызове мотеда класса происходит
+    соединение с СУБД и закрытие соединенияю '''
+    def wrapper(self, *args, **kwargs):
+        if self.tryclosemode:
+            try:
+                self.connect()
+                result = method(self, *args, **kwargs)
+            finally:
+                self.close()
+                return result
         else:
-            self.connection = self._get_connection(username=username,
-                                                   password=password,
-                                                   database=database)
+            return method(self, *args, **kwargs)
+    return wrapper
 
-#  функции соединения с СУБД -----------------------------------------------------------------------------------
-    def _getdeliriumdbconfig(self):
-        """ Получение настроек для связи с СУБД """
-        # configdict = {'hostname': 'localhost',
-        #               'username': 'postgres',
-        #               'password': '1234',
-        #               'database': 'vkinder'
-        #               }
-        # return configdict
-        return getconfig()
+def decor_methods_dbinator(decorator):
+    """ Применяет полученный декоратор к методам класса DataBaseInator
+    по определенному условию или списку """
+    list_attr = ['get_user', 'get_user_favorites',
+                 'get_user_favorites_id', 'add_user', 'delete_user', 'update_user',
+                 'set_position', 'get_position', 'is_user', 'is_favorites',
+                 'is_user_favorites', 'get_favorites', 'add_favorites', 'update_favorites',
+                 'delete_favorites', 'set_last_send_person', 'get_last_send_person', 'delete_last_send_person',
+                 'add_find_people', 'get_next_person', 'is_find_people', 'delete_find_people']
+    def decorate(mydbclass):
+        for attr in list_attr:
+            setattr(mydbclass, attr, decorator(getattr(mydbclass, attr)))
+        return mydbclass
+    return decorate
 
-    def _get_connection(self, *, username=None, password=None, database=None, hostname='localhost'):
-        """ возвращает соединение с СУБД по настройкам возвращаемым
-            self._getdeliriumdbconfig"""
-        if not (username and password and database):
-            dict_data = self._getdeliriumdbconfig()
-            hostname = dict_data['hostname']
-            username = dict_data['username']
-            password = dict_data['password']
-            database = dict_data['database']
-        self.host = hostname
+# ---------------------- db ---------------------------------------------
+@decor_methods_dbinator(trycloseinator)
+class DataBaseInator:
+
+    def __init__(self, username='postgres', password='1234', database='vkinder', host='localhost', **kwargs):
+        """ инициализация класса (username='postgres', password='1234', database='vkinder', host='localhost', **kwargs)
+        tryclosemode=True включает режим tryclose - коннект и закрытие коннекта при каждом вызове метода
+        """
+        if kwargs.get('tryclosemode', None) is None:
+            self.tryclosemode = False
+        else:
+            self.tryclosemode = True
+            kwargs.pop('tryclosemode')
         self.user = username
         self.password = password
         self.database = database
-        result = psycopg2.connect(host=hostname,
-                                  user=username,
-                                  password=password,
-                                  database=database)
-        return result
+        self.host = host
+        self.kwargs = kwargs
+        self.connection = None
+        # self.connect()
 
-    def close(self):
-        if not self.connection.closed:
-            self.connection.close()
-
-    def closed(self):
-        return self.connection.closed
+#  функции соединения с СУБД -----------------------------------------------------------------------------------
 
     def connect(self):
-        if self.connection.closed:
+        ''' соединение с СУБД '''
+        if not self.connection or self.connection.closed:
             self.connection = psycopg2.connect(host=self.host,
                                       user=self.user,
                                       password=self.password,
-                                      database=self.database)
+                                      database=self.database,
+                                      **self.kwargs)
 
-    def create_tables(self):
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(sql_create_vk_user)
-                cursor.execute(sql_create_favorites)
-                cursor.execute(sql_create_u_f)
-                cursor.execute(sql_create_last_send_person)
-                cursor.execute(sql_create_find_people)
-            self.connection.commit()
-        finally:
+    def close(self):
+        ''' закрытие соединения '''
+        if not self.connection.closed:
             self.connection.close()
-        return
 
-    def drop_tables(self):
-        try:
-            with self.connection.cursor() as cursor:
-                sql_drop_vk_user = """DROP TABLE vk_user;"""
-                sql_drop_favorites = """DROP TABLE favorites;"""
 
-                sql_drop_u_f = """DROP TABLE user_favorites;"""
-                sql_drop_find_people = """DROP TABLE find_people;"""
-                sql_drop_last_send_person = """DROP TABLE last_send_person;"""
-                cursor.execute(sql_drop_u_f)
-                cursor.execute(sql_drop_favorites)
-                cursor.execute(sql_drop_find_people)
-                cursor.execute(sql_drop_last_send_person)
-                cursor.execute(sql_drop_vk_user)
-            self.connection.commit()
-        finally:
-            self.connection.close()
-# ---------------------------------------------------------------------------------------------------------------
-
+    def closed(self):
+        return self.connection.closed
 
     # таблица vk_user -------------------------------------------------------------------------------------------
     def get_user(self, vk_id: int):
@@ -114,6 +88,18 @@ class DeliriumBDinator:
             cursor.execute(sql, (vk_id,))
             result = cursor.fetchone()
         return result
+
+    # create drop tables ----------------------------------------------------------------------------------------
+    def create_tables(self):
+        """ создание таблиц """
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.execute(SQL_CREATE_TABLES)
+
+    def drop_tables(self):
+        """ удаление таблиц """
+        with self.connection, self.connection.cursor() as cursor:
+            cursor.execute(SQL_DROP_TABLES)
+    # -------------------------------------------------------------------------------------------------------------
 
     def get_user_favorites(self, vk_id: int) -> list:
         """ данные об избранных пользователя по vk_id таблицы vk_user """
@@ -162,40 +148,40 @@ class DeliriumBDinator:
         with self.connection, self.connection.cursor() as cursor:
             if position is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_position = %s
-                            WHERE vk_id = %s;""", (position, vk_id))
+                                        SET user_position = %s
+                                        WHERE vk_id = %s;""", (position, vk_id))
             if date is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_date = %s
-                            WHERE vk_id = %s;""", (date, vk_id))
+                                        SET user_date = %s
+                                        WHERE vk_id = %s;""", (date, vk_id))
             if name is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_name = %s
-                            WHERE vk_id = %s;""", (name, vk_id))
+                                        SET user_name = %s
+                                        WHERE vk_id = %s;""", (name, vk_id))
             if surname is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_surname = %s
-                            WHERE vk_id = %s;""", (surname, vk_id))
+                                        SET user_surname = %s
+                                        WHERE vk_id = %s;""", (surname, vk_id))
             if birthday is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_birthday = %s
-                            WHERE vk_id = %s;""", (birthday, vk_id))
+                                        SET user_birthday = %s
+                                        WHERE vk_id = %s;""", (birthday, vk_id))
             if age is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_age = %s
-                            WHERE vk_id = %s;""", (age, vk_id))
+                                        SET user_age = %s
+                                        WHERE vk_id = %s;""", (age, vk_id))
             if sex is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_sex = %s
-                            WHERE vk_id = %s;""", (sex, vk_id))
+                                        SET user_sex = %s
+                                        WHERE vk_id = %s;""", (sex, vk_id))
             if city is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_city = %s
-                            WHERE vk_id = %s;""", (city, vk_id))
+                                        SET user_city = %s
+                                        WHERE vk_id = %s;""", (city, vk_id))
             if data is not None:
                 cursor.execute("""UPDATE vk_user
-                            SET user_data = %s
-                            WHERE vk_id = %s;""", (data, vk_id))
+                                        SET user_data = %s
+                                        WHERE vk_id = %s;""", (data, vk_id))
 
     # Позиции .................................................................................................
     def set_position(self, vk_id, position):
@@ -232,9 +218,7 @@ class DeliriumBDinator:
         return result
 
     def is_user_favorites(self, user_id, favorites_id):
-        """ Проверяет наличие связи пользователя и избранного.
-        стоит убрать этот метод ??????????????????????????????????????????????????????????????????????????
-        """
+        """ Проверяет наличие связи пользователя и избранного. """
         with self.connection, self.connection.cursor() as cursor:
             sql = "SELECT user_id, favorites_id FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
             cursor.execute(sql, (user_id, favorites_id,))
@@ -329,7 +313,7 @@ class DeliriumBDinator:
                 cursor.execute("""UPDATE favorites
                             SET user_photo_3 = %s
                             WHERE id = %s;""", (photo_3, vk_id))
-        return  # просто бессмысленный ретурн
+
 
     def delete_favorites(self, user_id, favorites_id):
         """ Удалает пользователя из избранного пользователя.
@@ -402,9 +386,13 @@ class DeliriumBDinator:
             sql_select = "SELECT * FROM last_send_person WHERE user_id = %s"
             cursor.execute(sql_select, (user_id,))
             result = cursor.fetchone()
-            message = f'{result[4]} {result[5]}\n{result[13]}'
+            name = result[4]
+            surname = result[5]
+            link = result[13]
+            message = f'{name} {surname}\n{link}'
             attachments = [photo for photo in result[10:13] if photo]
-        return message, attachments, result[2]
+            id_ = result[2]
+        return message, attachments, id_
 
     def delete_last_send_person(self, vk_id):
         with self.connection, self.connection.cursor() as cursor:
@@ -453,91 +441,9 @@ class DeliriumBDinator:
             sql = "DELETE FROM find_people WHERE user_id = %s"
             cursor.execute(sql, (vk_id,))
 
-# ---------------------- end dbdelirium  ----------------------------------------------
 
-# ---------- CREATE TABLES and DROP
+# ---------------------- end db  ----------------------------------------------
 
-sql_create_vk_user = """CREATE TABLE IF NOT EXISTS vk_user (
-    -- id SERIAL PRIMARY KEY,
-    vk_id INTEGER PRIMARY KEY,
-    user_position SMALLINT,
-    user_date INTEGER NOT NULL,
-    user_name VARCHAR(50),
-    user_surname VARCHAR(60),
-    user_birthday INTEGER,
-    user_sex BOOLEAN,
-    user_age SMALLINT,
-    user_city  VARCHAR(60),
-    user_data VARCHAR(60));
-"""
-
-sql_create_favorites = """CREATE TABLE IF NOT EXISTS favorites (
-    vk_id INTEGER PRIMARY KEY,
-    user_date INTEGER NOT NULL,
-    user_name VARCHAR(50),
-    user_surname VARCHAR(60),
-    user_birthday INTEGER,
-    user_age SMALLINT,
-    user_city  VARCHAR(60),
-    user_sex BOOLEAN, -- 0 - male 1 - female
-    user_photo_1 VARCHAR(60),
-    user_photo_2 VARCHAR(60),
-    user_photo_3 VARCHAR(60),
-    user_data VARCHAR(60));"""
-
-# -- многие ко многим (1 вариант)
-sql_create_u_f = """CREATE TABLE IF NOT EXISTS user_favorites (
-    user_id INTEGER REFERENCES vk_user(vk_id),
-    favorites_id INTEGER REFERENCES favorites(vk_id),
-    CONSTRAINT pk PRIMARY KEY (user_id, favorites_id)
-);"""
-
-# табоица найденных людей
-sql_create_last_send_person = """CREATE TABLE IF NOT EXISTS last_send_person (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES vk_user(vk_id),
-    last_id INTEGER NOT NULL,
-    user_date INTEGER NOT NULL,
-    user_name VARCHAR(50),
-    user_surname VARCHAR(60),
-    user_birthday INTEGER,
-    user_age SMALLINT,
-    user_city  VARCHAR(60),
-    user_sex BOOLEAN, -- 0 - male 1 - female
-    user_photo_1 VARCHAR(60),
-    user_photo_2 VARCHAR(60),
-    user_photo_3 VARCHAR(60),
-    user_data VARCHAR(60));"""
-
-# -- многие ко многим (1 вариант) id-шники
-sql_create_find_people = """CREATE TABLE IF NOT EXISTS find_people (
-    user_id INTEGER REFERENCES vk_user(vk_id),
-    find_people_id INTEGER NOT NULL,
-    seen_flag BOOLEAN,
-    find_people_date INTEGER NOT NULL,
-    user_name VARCHAR(50),
-    user_surname VARCHAR(60),
-    user_data VARCHAR(60),
-    CONSTRAINT pk_fp PRIMARY KEY (user_id, find_people_id)
-);"""
-
-
-def get_connection(*, username=None, password=None, database=None, hostname='localhost'):
-    """ возвращает соединение с СУБД по настройкам возвращаемым
-        getconfig """
-    if not (username and password and database):
-        dict_data = getconfig()
-        hostname = dict_data['hostname']
-        username = dict_data['username']
-        password = dict_data['password']
-        database = dict_data['database']
-    result = psycopg2.connect(host=hostname,
-                              user=username,
-                              password=password,
-                              database=database)
-    return result
-
-
+# end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    db = DeliriumBDinator(username='postgres', password='pstpwd', database='vkinder')
-    db.drop_tables()
+    pass

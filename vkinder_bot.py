@@ -1,11 +1,11 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import get_user_info, find_people, content_generator
-from dbdeliriuminator.classdbinator import *
 from cities import get_city_list
 from menu import Command, Position
 from random import randrange
 from time import sleep, time
+from db.classdbinator import DataBaseInator
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from urllib3.exceptions import ReadTimeoutError
@@ -13,9 +13,9 @@ from urllib3.exceptions import ReadTimeoutError
 
 def bot(user_token, public_token, db_user_name='postgres', db_password='1234', db='vkinder', memory_days=0):
 
-    db = DeliriumBDinator(username=db_user_name, password=db_password, database=db)
-    db.create_tables()
+    db = DataBaseInator(username=db_user_name, password=db_password, database=db)
     db.connect()
+    db.create_tables()
 
     vk_me = vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     vk_bot = vk_api.VkApi(token=public_token, api_version='5.131')
@@ -126,7 +126,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             else:
                                 start(vk_me)
 
-                        elif position == Position.NEED_AGE and request.isdigit() and int(request) < 70:
+                        elif position == Position.NEED_AGE and request.isdigit() and 10 < int(request) < 70:
                             db.update_user(user_id, age=int(request))
                             write_msg(user_id, 'Принято')
                             if db.get_user(user_id)[-2]:
