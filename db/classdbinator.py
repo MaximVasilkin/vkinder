@@ -27,12 +27,13 @@ def trycloseinator(method):
 def decor_methods_dbinator(decorator):
     """ Применяет полученный декоратор к методам класса DataBaseInator
     по определенному условию или списку """
-    list_attr = ['get_user', 'get_user_favorites',
+    list_attr = ['get_user', 'get_user_additional_age', 'get_user_favorites',
                  'get_user_favorites_id', 'add_user', 'delete_user', 'update_user',
                  'set_position', 'get_position', 'is_user', 'is_favorites',
                  'is_user_favorites', 'get_favorites', 'add_favorites', 'update_favorites',
                  'delete_favorites', 'set_last_send_person', 'get_last_send_person', 'delete_last_send_person',
                  'add_find_people', 'get_next_person', 'is_find_people', 'delete_find_people']
+
     def decorate(mydbclass):
         for attr in list_attr:
             setattr(mydbclass, attr, decorator(getattr(mydbclass, attr)))
@@ -89,6 +90,21 @@ class DataBaseInator:
             result = cursor.fetchone()
         return result
 
+    def get_user_additional_age(self, vk_id: int):
+        """ данные пользователя по vk_id """
+        with self.connection, self.connection.cursor() as cursor:
+            sql = "SELECT user_age_range FROM vk_user WHERE vk_id = %s"
+            cursor.execute(sql, (vk_id,))
+            result = cursor.fetchone()[0]
+            if result:
+                range_list = result.split()
+                item = range_list.pop()
+                new_range_ages = ' '.join(range_list)
+                cursor.execute("""UPDATE vk_user
+                                     SET user_age_range = %s
+                                   WHERE vk_id = %s;""", (new_range_ages, vk_id))
+                return item
+
     # create drop tables ----------------------------------------------------------------------------------------
     def create_tables(self):
         """ создание таблиц """
@@ -104,7 +120,10 @@ class DataBaseInator:
     def get_user_favorites(self, vk_id: int) -> list:
         """ данные об избранных пользователя по vk_id таблицы vk_user """
         with self.connection, self.connection.cursor() as cursor:
-            sql = "SELECT * FROM favorites JOIN user_favorites ON favorites.vk_id = user_favorites.favorites_id WHERE user_id = %s"
+            sql = '''SELECT * FROM favorites 
+                       JOIN user_favorites 
+                         ON favorites.vk_id = user_favorites.favorites_id 
+                      WHERE user_id = %s'''
             cursor.execute(sql, (vk_id,))
             result = cursor.fetchall()
         return result
@@ -112,20 +131,24 @@ class DataBaseInator:
     def get_user_favorites_id(self, vk_id: int) -> list: # -------------------------------------------------
         """ данные о vk_id избранных пользователя по vk_id """
         with self.connection, self.connection.cursor() as cursor:
-            sql = "SELECT vk_id FROM favorites JOIN user_favorites ON favorites.vk_id = user_favorites.favorites_id WHERE user_id = %s"
+            sql = '''SELECT vk_id FROM favorites 
+                       JOIN user_favorites 
+                         ON favorites.vk_id = user_favorites.favorites_id 
+                      WHERE user_id = %s'''
             cursor.execute(sql, (vk_id,))
             result = cursor.fetchall()
         return result
 
-    def add_user(self, vk_id, position=None, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None):
+    def add_user(self, vk_id, position=None, date=None, name=None, surname=None, birthday=None, age_range=None, sex=None, city=None, data=None):
         """ добавляем данные пользователя поле vk_id обязательно
         (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None) """
         if date is None:
             date = datetime.datetime.now().timestamp()
         with self.connection, self.connection.cursor() as cursor:
-            sql = """INSERT INTO vk_user(vk_id, user_position, user_date, user_name, user_surname, user_birthday, user_age, user_sex, user_city, user_data)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
-            cursor.execute(sql, (vk_id, position, date, name, surname, birthday, age, sex, city, data))
+            sql = """INSERT INTO vk_user(vk_id, user_position, user_date, user_name, user_surname, 
+                                         user_birthday, user_age_range, user_sex, user_city, user_data)
+                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+            cursor.execute(sql, (vk_id, position, date, name, surname, birthday, age_range, sex, city, data))
 
     def delete_user(self, vk_id):
         """ удаляем пользователя по vk_id """
@@ -141,8 +164,8 @@ class DataBaseInator:
                         WHERE user_favorites.favorites_id IS NULL);"""
             cursor.execute(sql_1, (vk_id,))
 
-    def update_user(self, vk_id, position=None, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
-                    data=None):
+    def update_user(self, vk_id, position=None, date=None, name=None, surname=None,
+                    birthday=None, age_range=None, sex=None, city=None, data=None):
         """ изменяем данные пользователя
         (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None)"""
         with self.connection, self.connection.cursor() as cursor:
@@ -166,10 +189,10 @@ class DataBaseInator:
                 cursor.execute("""UPDATE vk_user
                                         SET user_birthday = %s
                                         WHERE vk_id = %s;""", (birthday, vk_id))
-            if age is not None:
+            if age_range is not None:
                 cursor.execute("""UPDATE vk_user
-                                        SET user_age = %s
-                                        WHERE vk_id = %s;""", (age, vk_id))
+                                        SET user_age_range = %s
+                                        WHERE vk_id = %s;""", (age_range, vk_id))
             if sex is not None:
                 cursor.execute("""UPDATE vk_user
                                         SET user_sex = %s
@@ -235,7 +258,8 @@ class DataBaseInator:
         return result
     # ??????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-    def add_favorites(self, user_id, favorites_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None,
+    def add_favorites(self, user_id, favorites_id, date=None, name=None,
+                      surname=None, birthday=None, age=None, sex=None,
                       city=None, data=None, photo_1=None, photo_2=None, photo_3=None):
         """ Добавляет пользователя в избранное. Если не удалось добавить, возвращает False
         Проверяет равенство user_id, favorites_id и наличие favorites_id в БД """
@@ -250,8 +274,12 @@ class DataBaseInator:
             cursor.execute(sql_check, (favorites_id,))
             if cursor.fetchone() is None:
                 # добавляем в избранное
-                sql_insert_f = "INSERT INTO favorites(vk_id, user_date, user_name, user_surname, user_birthday, user_age, user_sex, user_city, user_data, user_photo_1, user_photo_2, user_photo_3) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"
-                cursor.execute(sql_insert_f, (favorites_id, date, name, surname, birthday, age, sex, city, data, photo_1, photo_2, photo_3))
+                sql_insert_f = '''INSERT INTO favorites(vk_id, user_date, user_name, user_surname, user_birthday, 
+                                                        user_age, user_sex, user_city, user_data, user_photo_1, 
+                                                        user_photo_2, user_photo_3) 
+                                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'''
+                cursor.execute(sql_insert_f, (favorites_id, date, name, surname, birthday,
+                                              age, sex, city, data, photo_1, photo_2, photo_3))
             # добавляем связь
             sql_check_2 = "SELECT * FROM user_favorites WHERE user_id = %s AND favorites_id = %s"
             cursor.execute(sql_check_2, (user_id, favorites_id))
@@ -261,8 +289,8 @@ class DataBaseInator:
             cursor.execute(sql_insert_uf, (user_id, favorites_id))
         return True
 
-    def update_favorites(self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
-                         data=None,
+    def update_favorites(self, vk_id, date=None, name=None, surname=None, birthday=None,
+                         age=None, sex=None, city=None, data=None,
                          photo_1=None, photo_2=None, photo_3=None):
         """ изменение данных избранного (Нео, приготовься)
         (self, vk_id, date, name=None, surname=None, birthday=None, age=None,
@@ -409,16 +437,20 @@ class DataBaseInator:
         with self.connection, self.connection.cursor() as cursor:
             # проверка наличия записи ------------------------------
             for person in list_of_dicts:
-                sql_insert = """INSERT INTO find_people(user_id, find_people_id, seen_flag, find_people_date, user_name, user_surname, user_data)
+                sql_insert = """INSERT INTO find_people(user_id, find_people_id, seen_flag, find_people_date, 
+                                                        user_name, user_surname, user_data)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s);"""
-                cursor.execute(sql_insert, (vk_id, person['id'], False, date, person["first_name"], person["last_name"], f'https://vk.com/id{person["id"]}'))
+                cursor.execute(sql_insert, (vk_id, person['id'], False, date, person["first_name"],
+                                            person["last_name"], f'https://vk.com/id{person["id"]}'))
 
     def get_next_person(self, vk_id: int, check=False):
         """ получение данных
         (self, vk_id) """
 
         with self.connection, self.connection.cursor() as cursor:
-            sql_select = "SELECT find_people_id, user_name, user_surname, user_data FROM find_people WHERE user_id = %s AND seen_flag = False"
+            sql_select = '''SELECT find_people_id, user_name, user_surname, user_data 
+                              FROM find_people 
+                             WHERE user_id = %s AND seen_flag = False'''
             cursor.execute(sql_select, (vk_id,))
             result = cursor.fetchone()
             if result and not check:                # not SEEN
@@ -447,3 +479,4 @@ class DataBaseInator:
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     pass
+
