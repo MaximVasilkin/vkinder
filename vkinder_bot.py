@@ -65,17 +65,17 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
     def start(vk_me, user_sex=None, user_birth_year=None, user_city_title=None):
         if not any([user_birth_year, user_city_title]):
             user_sex, user_birth_year, user_city_title = __get_sex_birth_city_from_db(user_id)
-        additional_age = db.get_user_additional_age(user_id)
-        if additional_age:
-            user_birth_year += int(additional_age)
-        if not additional_age:
-            db.delete_last_send_person(user_id)
-            db.delete_find_people(user_id)
-            additional_ages = __get_additional_ages()
-            db.update_user(user_id, age_range=additional_ages, position=0)
-            write_msg(user_id, 'Нет анкет! Нажмите "Старт", чтобы повторить поиск')
-            return
         if not db.get_next_person(user_id, check=True):
+            additional_age = db.get_user_additional_age(user_id)
+            if additional_age:
+                user_birth_year += int(additional_age)
+            if not additional_age:
+                db.delete_last_send_person(user_id)
+                db.delete_find_people(user_id)
+                additional_ages = __get_additional_ages()
+                db.update_user(user_id, age_range=additional_ages, position=0)
+                write_msg(user_id, 'Новых анкет нет &#128532;, но Вы можете начать заново &#128521;')
+                return
             db.add_find_people(str(user_id), find_people(user_sex, user_birth_year, user_city_title, vk_me))
         db.update_user(user_id, position=1)
         send_next_person()
@@ -103,19 +103,23 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
             db.connect()
         try:
             for event in longpoll.listen():
+                try:
+                    user_id = event.user_id
+                    if not db.is_user(user_id):
+                        additional_ages = __get_additional_ages()
+                        db.add_user(user_id, position=0, age_range=additional_ages)
+                    position = db.get_position(user_id)
+                except AttributeError:
+                    pass
+
+                if event.type == VkEventType.USER_TYPING and position == Position.INTRO:
+                    write_msg(user_id, 'Привет!!! Чтобы начать, нажмите кнопку "Старт" &#128526;')
+
 
                 if event.type == VkEventType.MESSAGE_NEW:
 
                     if event.to_me:
-                        user_id = event.user_id
                         request = event.text
-
-                        if not db.is_user(user_id):
-                            additional_ages = __get_additional_ages()
-                            db.add_user(user_id, position=0, age_range=additional_ages)
-
-                        position = db.get_position(user_id)
-
                         if position == Position.INTRO and request.capitalize() == Command.START:
                             user_db_info = db.get_user(user_id)
                             date = user_db_info[2]
@@ -146,7 +150,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             else:
                                 start(vk_me)
 
-                        elif position == Position.NEED_AGE and request.isdigit() and 10 < int(request) < 70:
+                        elif position == Position.NEED_AGE and request.isdigit() and 13 < int(request) < 70:
                             db.update_user(user_id, birthday=int(datetime.now().year - int(request)))
                             write_msg(user_id, 'Принято')
                             city = db.get_user(user_id)[-2]
@@ -158,8 +162,9 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
 
                         elif position == Position.NEED_CITY:
                             try:
-                                index = get_city_list('cities.json')[0].index(request.strip().lower().replace('-', ' '))
-                                db.update_user(user_id, city=get_city_list('cities.json')[1][index])
+                                adapted_city, etalon_city = get_city_list('cities.json')
+                                index = adapted_city.index(request.strip().lower().replace('-', ' '))
+                                db.update_user(user_id, city=etalon_city[index])
                                 write_msg(user_id, 'Принято')
                                 birthday = db.get_user(user_id)[-5]
                                 if birthday:
@@ -220,7 +225,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                 and request.isdigit() and db.is_user_favorites(user_id, request):
                             db.delete_favorites(user_id, request)
                             db.update_user(user_id, position=3)
-                            write_msg(user_id, f'&#128687; Пользователь с id {request} успешно удалён')
+                            write_msg(user_id, f'&#10062; Пользователь с id {request} успешно удалён')
                             open_favorites(user_id)
 
                         else:

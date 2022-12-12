@@ -30,7 +30,7 @@ def decor_methods_dbinator(decorator):
     list_attr = ['get_user', 'get_user_additional_age', 'get_user_favorites',
                  'get_user_favorites_id', 'add_user', 'delete_user', 'update_user',
                  'set_position', 'get_position', 'is_user', 'is_favorites',
-                 'is_user_favorites', 'get_favorites', 'add_favorites', 'update_favorites',
+                 'is_user_favorites', 'get_favorites', 'add_favorites',
                  'delete_favorites', 'set_last_send_person', 'get_last_send_person', 'delete_last_send_person',
                  'add_find_people', 'get_next_person', 'is_find_people', 'delete_find_people']
 
@@ -206,6 +206,7 @@ class DataBaseInator:
                                         SET user_data = %s
                                         WHERE vk_id = %s;""", (data, vk_id))
 
+
     # Позиции .................................................................................................
     def set_position(self, vk_id, position):
         with self.connection, self.connection.cursor() as cursor:
@@ -288,59 +289,6 @@ class DataBaseInator:
             sql_insert_uf = "INSERT INTO user_favorites(user_id, favorites_id) VALUES (%s, %s)"
             cursor.execute(sql_insert_uf, (user_id, favorites_id))
         return True
-
-    def update_favorites(self, vk_id, date=None, name=None, surname=None, birthday=None,
-                         age=None, sex=None, city=None, data=None,
-                         photo_1=None, photo_2=None, photo_3=None):
-        """ изменение данных избранного (Нео, приготовься)
-        (self, vk_id, date, name=None, surname=None, birthday=None, age=None,
-        sex=None, city=None, data=None,
-        photo_1=None, photo_2=None, photo_3=None)"""
-        with self.connection, self.connection.cursor() as cursor:
-            if date:
-                cursor.execute("""UPDATE favorites
-                            SET user_date = %s
-                            WHERE id = %s;""", (date, vk_id))
-            if name:
-                cursor.execute("""UPDATE favorites
-                            SET user_name = %s
-                            WHERE id = %s;""", (name, vk_id))
-            if surname:
-                cursor.execute("""UPDATE favorites
-                            SET user_surname = %s
-                            WHERE id = %s;""", (surname, vk_id))
-            if birthday:
-                cursor.execute("""UPDATE favorites
-                            SET user_birthday = %s
-                            WHERE id = %s;""", (birthday, vk_id))
-            if age:
-                cursor.execute("""UPDATE favorites
-                            SET user_age = %s
-                            WHERE id = %s;""", (age, vk_id))
-            if sex:
-                cursor.execute("""UPDATE favorites
-                            SET user_sex = %s
-                            WHERE id = %s;""", (sex, vk_id))
-            if city:
-                cursor.execute("""UPDATE favorites
-                            SET user_city = %s
-                            WHERE id = %s;""", (city, vk_id))
-            if data:
-                cursor.execute("""UPDATE favorites
-                            SET user_data = %s
-                            WHERE id = %s;""", (data, vk_id))
-            if photo_1:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_1 = %s
-                            WHERE id = %s;""", (photo_1, vk_id))
-            if photo_2:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_2 = %s
-                            WHERE id = %s;""", (photo_2, vk_id))
-            if photo_3:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_3 = %s
-                            WHERE id = %s;""", (photo_3, vk_id))
 
 
     def delete_favorites(self, user_id, favorites_id):
