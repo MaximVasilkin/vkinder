@@ -113,7 +113,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                     pass
 
                 if event.type == VkEventType.USER_TYPING:
-                    if position  == Position.INTRO:
+                    if position == Position.INTRO:
                         write_msg(user_id, 'Привет!!! Чтобы начать, нажмите кнопку "Старт" &#128526;')
 
                 if event.type == VkEventType.MESSAGE_NEW:
