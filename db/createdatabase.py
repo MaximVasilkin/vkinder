@@ -8,8 +8,8 @@ sql_create_vk_user = """CREATE TABLE IF NOT EXISTS vk_user (
     user_surname VARCHAR(60),
     user_birthday INTEGER,
     user_sex BOOLEAN,
-    user_age SMALLINT,
-    user_city  VARCHAR(60),
+    user_age_range VARCHAR(60),
+    user_city VARCHAR(60),
     user_data VARCHAR(60));
 """
 

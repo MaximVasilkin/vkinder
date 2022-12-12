@@ -3,7 +3,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from get_people import get_user_info, find_people, content_generator
 from cities import get_city_list
 from menu import Command, Position
-from random import randrange
+from random import randrange, sample
 from time import sleep, time
 from datetime import datetime
 from db.classdbinator import DataBaseInator
@@ -40,6 +40,16 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
         photos_dict = {f'photo_{number + 1}': photo for number, photo in enumerate(list_of_photo)}
         return photos_dict
 
+    def __get_sex_birth_city_from_db(user_id):
+        data = db.get_user(user_id)
+        user_sex = data[-4]
+        user_birth_year = data[-5]
+        user_city_title = data[-2]
+        return user_sex, user_birth_year, user_city_title
+
+    def __get_additional_ages():
+        return ' '.join(str(num) for num in sample(range(-5, 6), 11))
+
     def send_next_person(copy_person=True):
         person = db.get_next_person(user_id)
         if person:
@@ -50,21 +60,24 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                         data=link, **__get_photos_args(photos))
             write_msg(user_id, f'{first_name} {surname}\n{link}', ','.join(photos))
         else:
-            db.delete_last_send_person(user_id)
-            db.delete_find_people(user_id)
-            db.update_user(user_id, position=0)
-            write_msg(user_id, 'Нет анкет! Нажмите "Старт", чтобы повторить поиск')
+            start(vk_me=vk_me)
 
     def start(vk_me, user_sex=None, user_birth_year=None, user_city_title=None):
-        write_msg(user_id, 'Анкеты скоро загрузятся. Пожалуйста, подождите &#128522;')
-        db.update_user(user_id, position=1)
         if not any([user_birth_year, user_city_title]):
-            data = db.get_user(user_id)
-            user_sex = data[-4]
-            user_birth_year = data[-5]
-            user_city_title = data[-2]
+            user_sex, user_birth_year, user_city_title = __get_sex_birth_city_from_db(user_id)
+        additional_age = db.get_user_additional_age(user_id)
+        if additional_age:
+            user_birth_year += int(additional_age)
+        if not additional_age:
+            db.delete_last_send_person(user_id)
+            db.delete_find_people(user_id)
+            additional_ages = __get_additional_ages()
+            db.update_user(user_id, age_range=additional_ages, position=0)
+            write_msg(user_id, 'Нет анкет! Нажмите "Старт", чтобы повторить поиск')
+            return
         if not db.get_next_person(user_id, check=True):
             db.add_find_people(str(user_id), find_people(user_sex, user_birth_year, user_city_title, vk_me))
+        db.update_user(user_id, position=1)
         send_next_person()
 
     def open_favorites(user_id):
@@ -98,7 +111,8 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         request = event.text
 
                         if not db.is_user(user_id):
-                            db.add_user(user_id, position=0)
+                            additional_ages = __get_additional_ages()
+                            db.add_user(user_id, position=0, age_range=additional_ages)
 
                         position = db.get_position(user_id)
 
@@ -111,7 +125,8 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             if time() - date > (memory_days * 86400) if memory_days else -1:
                                 db.delete_last_send_person(user_id)
                                 db.delete_find_people(user_id)
-                                db.update_user(user_id, birthday=0, city='', date=time())
+                                additional_ages = __get_additional_ages()
+                                db.update_user(user_id, age_range=additional_ages, birthday=0, city='', date=time())
 
                             if not any([birth_year, city]):
                                 user_sex, user_birth_year, user_city_title = get_user_info(user_id, vk_me)
@@ -125,7 +140,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                     write_msg(user_id, 'Введите Ваш Город')
                                 else:
                                     start(user_sex=user_sex,
-                                          user_birth_year=user_birth_year,
+                                          user_birth_year=user_birth_year ,
                                           user_city_title=user_city_title,
                                           vk_me=vk_me)
                             else:

@@ -29,19 +29,18 @@ def find_people(user_sex, user_birth_year, user_city_title, my_token_api_object)
     :param my_token_api_object: объект vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     :return: список найденных людей
     '''
-    AGE_RANGE = 5                                   # разброс в годах, +- к возрасту
-    for birth_year in range(user_birth_year - AGE_RANGE, user_birth_year + AGE_RANGE + 1):
-        sleep(DELAY)
-        response = my_token_api_object.users.search(**{'sort': '0',
-                                                        'count': '1000',
-                                                        'hometown': user_city_title,
-                                                        'sex': 1 if user_sex else 2,
-                                                        'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
-                                                        'birth_year': birth_year,
-                                                        'has_photo': '1'})                # строго с фото
-        people = response['items']  # тут список найденных людей
-        not_closed_profiles = [person for person in people if not person['is_closed']]
-        yield from not_closed_profiles
+
+    sleep(DELAY)
+    response = my_token_api_object.users.search(**{'sort': '0',
+                                                    'count': '1000',
+                                                    'hometown': user_city_title,
+                                                    'sex': 1 if user_sex else 2,
+                                                    'status': 6,                      # семейное положение, 0 - ВСЁ, 6 — в активном поиске
+                                                    'birth_year': user_birth_year,
+                                                    'has_photo': '1'})                # строго с фото
+    people = response['items']  # тут список найденных людей
+    not_closed_profiles = [person for person in people if not person['is_closed']]
+    return not_closed_profiles
 
 
 def content_generator(one_person_list, my_token_api_object):
