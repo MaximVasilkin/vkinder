@@ -2,6 +2,7 @@
 # узрите, новый датабейзаинатор
 
 import psycopg2
+from psycopg2 import sql
 import datetime
 from db.createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
 
@@ -141,47 +142,26 @@ class DataBaseInator:
                         WHERE user_favorites.favorites_id IS NULL);"""
             cursor.execute(sql_1, (vk_id,))
 
-    def update_user(self, vk_id, position=None, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
-                    data=None):
+    # ***************************************************************************************************************
+    def update_user(self, vk_id, **kwargs):
         """ изменяем данные пользователя
-        (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None)"""
+        (vk_id, position=None, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
+                    data=None)"""
+        d_columns = {'position': 'user_position', 'date': 'user_date', 'name': 'user_name', 'surname': 'user_surname',
+                     'birthday': 'user_birthday', 'age': 'user_age', 'city': 'user_city', 'sex': 'user_sex',
+                     'data': 'user_data'}
         with self.connection, self.connection.cursor() as cursor:
-            if position is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_position = %s
-                                        WHERE vk_id = %s;""", (position, vk_id))
-            if date is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_date = %s
-                                        WHERE vk_id = %s;""", (date, vk_id))
-            if name is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_name = %s
-                                        WHERE vk_id = %s;""", (name, vk_id))
-            if surname is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_surname = %s
-                                        WHERE vk_id = %s;""", (surname, vk_id))
-            if birthday is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_birthday = %s
-                                        WHERE vk_id = %s;""", (birthday, vk_id))
-            if age is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_age = %s
-                                        WHERE vk_id = %s;""", (age, vk_id))
-            if sex is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_sex = %s
-                                        WHERE vk_id = %s;""", (sex, vk_id))
-            if city is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_city = %s
-                                        WHERE vk_id = %s;""", (city, vk_id))
-            if data is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_data = %s
-                                        WHERE vk_id = %s;""", (data, vk_id))
+            sql_update = """UPDATE vk_user SET {data}
+                                        WHERE vk_id = {id};"""
+            stmt = sql.SQL(sql_update).format(
+                data=sql.SQL(', ').join(
+                    sql.Composed([sql.Identifier(d_columns[k]), sql.SQL(" = "), sql.Placeholder(k)]) for k in kwargs if
+                    k in d_columns
+                ),
+                id=sql.Placeholder('vk_id')
+            )
+            kwargs['vk_id'] = vk_id
+            cursor.execute(stmt, kwargs)
 
     # Позиции .................................................................................................
     def set_position(self, vk_id, position):
@@ -261,59 +241,26 @@ class DataBaseInator:
             cursor.execute(sql_insert_uf, (user_id, favorites_id))
         return True
 
-    def update_favorites(self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None,
-                         data=None,
-                         photo_1=None, photo_2=None, photo_3=None):
+    def update_favorites(self, vk_id, **kwargs):
         """ изменение данных избранного (Нео, приготовься)
-        (self, vk_id, date, name=None, surname=None, birthday=None, age=None,
-        sex=None, city=None, data=None,
-        photo_1=None, photo_2=None, photo_3=None)"""
+        (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None,
+        city=None, sex=None, photo_1=None, photo_2=None, photo_3=None, data=None)"""
         with self.connection, self.connection.cursor() as cursor:
-            if date:
-                cursor.execute("""UPDATE favorites
-                            SET user_date = %s
-                            WHERE id = %s;""", (date, vk_id))
-            if name:
-                cursor.execute("""UPDATE favorites
-                            SET user_name = %s
-                            WHERE id = %s;""", (name, vk_id))
-            if surname:
-                cursor.execute("""UPDATE favorites
-                            SET user_surname = %s
-                            WHERE id = %s;""", (surname, vk_id))
-            if birthday:
-                cursor.execute("""UPDATE favorites
-                            SET user_birthday = %s
-                            WHERE id = %s;""", (birthday, vk_id))
-            if age:
-                cursor.execute("""UPDATE favorites
-                            SET user_age = %s
-                            WHERE id = %s;""", (age, vk_id))
-            if sex:
-                cursor.execute("""UPDATE favorites
-                            SET user_sex = %s
-                            WHERE id = %s;""", (sex, vk_id))
-            if city:
-                cursor.execute("""UPDATE favorites
-                            SET user_city = %s
-                            WHERE id = %s;""", (city, vk_id))
-            if data:
-                cursor.execute("""UPDATE favorites
-                            SET user_data = %s
-                            WHERE id = %s;""", (data, vk_id))
-            if photo_1:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_1 = %s
-                            WHERE id = %s;""", (photo_1, vk_id))
-            if photo_2:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_2 = %s
-                            WHERE id = %s;""", (photo_2, vk_id))
-            if photo_3:
-                cursor.execute("""UPDATE favorites
-                            SET user_photo_3 = %s
-                            WHERE id = %s;""", (photo_3, vk_id))
+            d_columns = {'date': 'user_date', 'name': 'user_name', 'surname': 'user_surname', 'birthday': 'user_birthday',
+             'age': 'user_age', 'city': 'user_city', 'sex': 'user_sex', 'photo_1': 'user_photo_1',
+             'photo_2': 'user_photo_2', 'photo_3': 'user_photo_3', 'data': 'user_data'}
 
+            sql_update = """UPDATE favorites {data}
+                            WHERE vk_id = {id};"""
+            stmt = sql.SQL(sql_update).format(
+                data=sql.SQL(', ').join(
+                    sql.Composed([sql.Identifier(d_columns[k]), sql.SQL(" = "), sql.Placeholder(k)]) for k in kwargs if
+                    k in d_columns
+                ),
+                id=sql.Placeholder('vk_id')
+            )
+            kwargs['vk_id'] = vk_id
+            cursor.execute(stmt, kwargs)
 
     def delete_favorites(self, user_id, favorites_id):
         """ Удалает пользователя из избранного пользователя.
