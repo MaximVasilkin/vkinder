@@ -18,6 +18,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
     db.connect()
     db.create_tables()
 
+
     vk_me = vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     vk_bot = vk_api.VkApi(token=public_token, api_version='5.131')
     longpoll = VkLongPoll(vk_bot)

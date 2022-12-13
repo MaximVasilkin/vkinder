@@ -2,6 +2,7 @@
 # узрите, новый датабейзаинатор
 
 import psycopg2
+from psycopg2 import sql
 import datetime
 from db.createdatabase import SQL_CREATE_TABLES, SQL_DROP_TABLES
 
@@ -164,48 +165,22 @@ class DataBaseInator:
                         WHERE user_favorites.favorites_id IS NULL);"""
             cursor.execute(sql_1, (vk_id,))
 
-    def update_user(self, vk_id, position=None, date=None, name=None, surname=None,
-                    birthday=None, age_range=None, sex=None, city=None, data=None):
+    def update_user(self, vk_id, **kwargs):  # position=None, date=None, name=None, surname=None,
+        # birthday=None, age_range=None, sex=None, city=None, data=None):
         """ изменяем данные пользователя
-        (self, vk_id, date=None, name=None, surname=None, birthday=None, age=None, sex=None, city=None, data=None)"""
+        (vk_id, position=None, date=None, name=None, surname=None, birthday=None, age_range=None, sex=None, city=None, data=None)"""
+        d_columns = {'position': 'user_position', 'date': 'user_date', 'name': 'user_name', 'surname': 'user_surname',
+                     'birthday': 'user_birthday', 'age_range': 'user_age_range', 'city': 'user_city', 'sex': 'user_sex',
+                     'data': 'user_data'}
         with self.connection, self.connection.cursor() as cursor:
-            if position is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_position = %s
-                                        WHERE vk_id = %s;""", (position, vk_id))
-            if date is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_date = %s
-                                        WHERE vk_id = %s;""", (date, vk_id))
-            if name is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_name = %s
-                                        WHERE vk_id = %s;""", (name, vk_id))
-            if surname is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_surname = %s
-                                        WHERE vk_id = %s;""", (surname, vk_id))
-            if birthday is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_birthday = %s
-                                        WHERE vk_id = %s;""", (birthday, vk_id))
-            if age_range is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_age_range = %s
-                                        WHERE vk_id = %s;""", (age_range, vk_id))
-            if sex is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_sex = %s
-                                        WHERE vk_id = %s;""", (sex, vk_id))
-            if city is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_city = %s
-                                        WHERE vk_id = %s;""", (city, vk_id))
-            if data is not None:
-                cursor.execute("""UPDATE vk_user
-                                        SET user_data = %s
-                                        WHERE vk_id = %s;""", (data, vk_id))
-
+            sql_update = """UPDATE vk_user SET {data}
+                                                WHERE vk_id = {id};"""
+            stmt = sql.SQL(sql_update).format(
+                data=sql.SQL(', ').join(
+                    sql.Composed([sql.Identifier(d_columns[k]), sql.SQL(" = "), sql.Placeholder(k)]) for k in kwargs if
+                    k in d_columns), id=sql.Placeholder('vk_id'))
+            kwargs['vk_id'] = vk_id
+            cursor.execute(stmt, kwargs)
 
     # Позиции .................................................................................................
     def set_position(self, vk_id, position):
@@ -426,5 +401,4 @@ class DataBaseInator:
 
 # end tests -----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    pass
-
+   pass
