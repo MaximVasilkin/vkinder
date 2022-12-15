@@ -18,7 +18,6 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
     db.connect()
     db.create_tables()
 
-
     vk_me = vk_api.VkApi(token=user_token, api_version='5.131').get_api()
     vk_bot = vk_api.VkApi(token=public_token, api_version='5.131')
     longpoll = VkLongPoll(vk_bot)
@@ -74,17 +73,17 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                 db.delete_last_send_person(user_id)
                 db.delete_find_people(user_id)
                 additional_ages = __get_additional_ages()
-                db.update_user(user_id, age_range=additional_ages, position=0)
+                db.update_user(user_id, age_range=additional_ages, position=Position.INTRO)
                 write_msg(user_id, 'Новых анкет нет &#128532;, но Вы можете начать заново &#128521;')
                 return
             db.add_find_people(str(user_id), find_people(user_sex, user_birth_year, user_city_title, vk_me))
-        db.update_user(user_id, position=1)
+        db.update_user(user_id, position=Position.IN_MAIN_MENU)
         send_next_person()
 
     def open_favorites(user_id):
         favorites = db.get_user_favorites(user_id)
         if favorites:
-            db.update_user(user_id, position=3)
+            db.update_user(user_id, position=Position.IN_FAVORITE_MENU)
             emoji = '&#10024;' * 3
             write_msg(user_id, f'{emoji} Ваше избранное {emoji}')
             for favorite in favorites:
@@ -96,7 +95,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                 attachment = ','.join([photo for photo in photos if photo])
                 write_msg(user_id, message, attachment)
         else:
-            db.update_user(user_id, position=1)
+            db.update_user(user_id, position=Position.IN_MAIN_MENU)
             write_msg(user_id, 'Ваше избранное пусто')
 
     while True:
@@ -108,7 +107,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                     user_id = event.user_id
                     if not db.is_user(user_id):
                         additional_ages = __get_additional_ages()
-                        db.add_user(user_id, position=0, age_range=additional_ages)
+                        db.add_user(user_id, position=Position.INTRO, age_range=additional_ages)
                     position = db.get_position(user_id)
                 except AttributeError:
                     pass
@@ -137,14 +136,14 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                 db.update_user(user_id, sex=user_sex,
                                                birthday=user_birth_year, city=user_city_title)
                                 if not user_birth_year:
-                                    db.update_user(user_id, position=404)
+                                    db.update_user(user_id, position=Position.NEED_AGE)
                                     write_msg(user_id, 'Введите Ваш возраст')
                                 elif not user_city_title:
-                                    db.update_user(user_id, position=405)
+                                    db.update_user(user_id, position=Position.NEED_CITY)
                                     write_msg(user_id, 'Введите Ваш Город')
                                 else:
                                     start(user_sex=user_sex,
-                                          user_birth_year=user_birth_year ,
+                                          user_birth_year=user_birth_year,
                                           user_city_title=user_city_title,
                                           vk_me=vk_me)
                             else:
@@ -157,7 +156,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             if city:
                                 start(vk_me)
                             else:
-                                db.update_user(user_id, position=405)
+                                db.update_user(user_id, position=Position.NEED_CITY)
                                 write_msg(user_id, 'Введите Ваш Город')
 
                         elif position == Position.NEED_CITY:
@@ -170,7 +169,7 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                 if birthday:
                                     start(vk_me)
                                 else:
-                                    db.update_user(user_id, position=404)
+                                    db.update_user(user_id, position=Position.NEED_AGE)
                                     write_msg(user_id, 'Введите Ваш Возраст')
                             except ValueError:
                                 write_msg(user_id, 'Неверный ввод! Введите Ваш город')
@@ -179,11 +178,11 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                             send_next_person()
 
                         elif position == Position.IN_MAIN_MENU and request == Command.STOP:
-                            db.update_user(user_id, position=0)
+                            db.update_user(user_id, position=Position.INTRO)
                             write_msg(user_id, 'Хорошего Вам дня! &#127808;')
 
                         elif position == Position.IN_MAIN_MENU and request == Command.ADD_TO_FAVORITE:
-                            db.update_user(user_id, position=2)
+                            db.update_user(user_id, position=Position.IN_ADD_FAVORITE_MENU)
                             write_msg(user_id,
                                       '&#128142; Вы уверены, что хотите добавить текущего пользователя в избранное?',
                                       send_last=True)
@@ -191,9 +190,10 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                         elif position == Position.IN_ADD_FAVORITE_MENU and request == Command.YES:
                             last_send_person_info, last_send_person_photos, last_id = db.get_last_send_person(user_id)
                             if db.is_favorites(last_id):
-                                db.update_user(user_id, position=1)
+                                db.update_user(user_id, position=Position.IN_MAIN_MENU)
                                 write_msg(user_id,
-                                          '&#9940; Ошибка! Данный пользователь уже добавлен избранное\n' + last_send_person_info,
+                                          '&#9940; Ошибка! Данный пользователь '
+                                          'уже добавлен в избранное\n' + last_send_person_info,
                                           ','.join(last_send_person_photos))
                             else:
                                 full_name, data = last_send_person_info.split('\n')
@@ -203,28 +203,28 @@ def bot(user_token, public_token, db_user_name='postgres', db_password='1234', d
                                                  surname=surname,
                                                  data=data,
                                                  **__get_photos_args(last_send_person_photos))
-                                db.update_user(user_id, position=1)
+                                db.update_user(user_id, position=Position.IN_MAIN_MENU)
                                 write_msg(user_id, '&#10004; Добавлено!', send_last=True)
 
                         elif position == Position.IN_ADD_FAVORITE_MENU and request == Command.NO:
-                            db.update_user(user_id, position=1)
+                            db.update_user(user_id, position=Position.IN_MAIN_MENU)
                             write_msg(user_id, '&#10060; Не добавлено!', send_last=True)
 
                         elif position == Position.IN_MAIN_MENU and request == Command.OPEN_FAVORITE:
                             open_favorites(user_id)
 
                         elif position == Position.IN_FAVORITE_MENU and request == Command.OPEN_MAIN_MENU:
-                            db.update_user(user_id, position=1)
+                            db.update_user(user_id, position=Position.IN_MAIN_MENU)
                             write_msg(user_id, send_last=True)
 
                         elif position == Position.IN_FAVORITE_MENU and request == Command.DELETE:
-                            db.update_user(user_id, position=4)
+                            db.update_user(user_id, position=Position.IN_DELETE_FAVORITE_MENU)
                             write_msg(user_id, '&#128148; Введите ID пользователя для удаления')
 
                         elif position == Position.IN_DELETE_FAVORITE_MENU \
                                 and request.isdigit() and db.is_user_favorites(user_id, request):
                             db.delete_favorites(user_id, request)
-                            db.update_user(user_id, position=3)
+                            db.update_user(user_id, position=Position.IN_FAVORITE_MENU)
                             write_msg(user_id, f'&#10062; Пользователь с id {request} успешно удалён')
                             open_favorites(user_id)
 
